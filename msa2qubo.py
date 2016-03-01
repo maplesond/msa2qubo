@@ -30,23 +30,21 @@ class BVC:
 		self.__l2 = l2
 
 	def __str__(self):
-		return "N=" + str(self.__N) + "\tNumber of sequences\n" \
-									  "Lmax=" + str(self.__Lmax) + "\tLength of longest sequence\n" \
-																   "K=" + str(
-			self.__K) + "\tTotal number of characters\n" \
-						"M=" + str(self.M()) + "\tLength of each row in solution space\n" \
-											   "m=" + str(
-			self.m()) + "\tNumber of binary variables required to represent each position in solution space\n" \
-						"P=" + str(self.__P) + "\tMaximum gap size\n" \
-											   "p=" + str(
-			self.p()) + "\tNumber of binary variables required to represent each gap\n\n" \
-						"l0=" + str(self.__l0) + "\tPosition weighting\n" \
-												 "l1=" + str(self.__l1) + "\tGap weighting\n" \
-																		  "l2=" + str(
-			self.__l2) + "\tReward weighting\n\n" \
-						 "Solution space will contain " + str(self.calc_solutionSpaceSize()) + " cells\n\n" \
-																							   "# Binary Variables required: " + str(
-			self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n\n"
+		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
+				"Lmax=" + str(self.__Lmax) + "\tLength of longest sequence\n" \
+				"K=" + str(self.__K) + "\tTotal number of characters\n" \
+				"M=" + str(self.M()) + "\tLength of each row in solution space\n" \
+				"m=" + str(self.m()) + "\tNumber of binary variables required to represent each position in solution space\n" \
+				"P=" + str(self.__P) + "\tMaximum gap size\n" \
+				"p=" + str(self.p()) + "\tNumber of binary variables required to represent each gap\n\n" \
+				"l0=" + str(self.__l0) + "\tPosition weighting\n" \
+				"l1=" + str(self.__l1) + "\tGap weighting\n" \
+				"l2=" + str(self.__l2) + "\tReward weighting\n\n" \
+				"Solution space will contain " + str(self.calc_solutionSpaceSize()) + " cells\n\n" \
+				"Total # Binary Variables required: " + str(self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
+				"# Binary Variables required for positioning: " + str(self.get_NbPositioningVars()) + "\n" \
+				"# Binary Variables required for gaps: " + str(self.get_NbGapVars()) + "\n" \
+				"# Binary Variables required for rewards: ??\n" # + str(self.get_NbRewardVars()) + "\n" \
 
 	def add_record(self, record):
 		"""Adds a biopython record and updates the state of this object accordingly"""
@@ -114,6 +112,15 @@ class BVC:
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
 		return self.get_gVarOffset() + (self.__K * self.p())
 
+	def get_NbPositioningVars(self):
+		return self.__K * self.m()
+
+	def get_NbGapVars(self):
+		return self.__K * self.p()
+
+	def get_NbRewardVars(self):
+		return 0
+
 	def __addE0Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E0"""
 		x_bits = self.m()
@@ -126,22 +133,25 @@ class BVC:
 				x0_pos = k * j * x_bits
 				g_pos = g_offset + (k * (j + 1) * g_bits)
 				for i in range(0, x_bits - 1):
-					# TODO Not sure what to do with linear coefficients
 					x0i = x0_pos + i
 					x1i = x1_pos + i
 					gi = g_offset + g_pos + i
-					self.__bvm[x1i, x1i] += self.__l0
+					self.__bvm[x1i, x1i] += self.__l0 ** 2
 					self.__bvm[x1i, x0i] -= self.__l0
-					# self.__bvm[x1i,?] -= self.__l0   # Linear
+					self.__bvm[x1i, x1i] -= self.__l0
 					self.__bvm[x1i, gi] -= self.__l0
 					self.__bvm[x0i, x1i] -= self.__l0
-					self.__bvm[x0i, x0i] += self.__l0
-					# self.__bvm[x0i,?] -= self.__l0   # Linear
+					self.__bvm[x0i, x0i] += self.__l0 ** 2
+					self.__bvm[x0i, x0i] -= self.__l0
 					self.__bvm[x0i, gi] += self.__l0
+					self.__bvm[x1i, x1i] -= self.__l0
+					self.__bvm[x0i, x0i] -= self.__l0
+					# +1 here??? What do with a constant?
+					self.__bvm[gi, gi] += self.__l0
 					self.__bvm[gi, x1i] -= self.__l0
 					self.__bvm[gi, x0i] += self.__l0
-					# self.__bvm[gi,?] -= self.__l0    # Linear
 					self.__bvm[gi, gi] += self.__l0
+					self.__bvm[gi, gi] += self.__l0 ** 2
 
 				# Coefficients for second term (gap prior to first character)
 				x_pos = k * 1 * x_bits
@@ -149,8 +159,8 @@ class BVC:
 				for i in range(0, x_bits - 1):
 					xi = x_pos + i
 					gi = g_offset + g_pos + i
-					self.__bvm[xi, xi] += self.__l0
-					self.__bvm[gi, gi] += self.__l0
+					self.__bvm[xi, xi] += self.__l0 ** 2
+					self.__bvm[gi, gi] += self.__l0 ** 2
 					self.__bvm[xi, gi] -= self.__l0
 					self.__bvm[gi, xi] -= self.__l0
 
@@ -170,6 +180,21 @@ class BVC:
 		i = 1
 		# TODO Implement E2 coefficients
 
+	def __calcNbDiagonals(self):
+		count = 0
+		for i in range(0, self.get_NbBV() - 1):
+			if self.__bvm[i, i] != 0:
+				count += 1
+		return count
+
+	def __calcNbElements(self):
+		count = 0
+		for i in range(0, self.get_NbBV() - 2):
+			for j in range(i + 1, self.get_NbBV() - 2):
+				if self.__bvm[i, j] != 0:
+					count += 1
+		return count
+
 	def createBVMatrix(self):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
 		size = self.calc_maxBV()
@@ -188,7 +213,7 @@ class BVC:
 		o.write("c\n")
 
 		# Assume unconstrained target "0"
-		o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.get_NbBV()) + " X\n")
+		o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
 
 		# Output diagonals
 		o.write("c\n")
