@@ -176,7 +176,7 @@ class BVC:
 					self.__bvm[h, h] += self.__l1
 
 	def __addE2Coefficients(self):
-		"""Updates the binary variable matrix with coefficients from E1"""
+		"""Updates the binary variable matrix with coefficients from E2"""
 		i = 1
 		# TODO Implement E2 coefficients
 
@@ -231,6 +231,8 @@ class BVC:
 				v = self.__bvm[i, j]
 				if v != 0:
 					o.write(str(i) + " " + str(j) + " " + str(v) + "\n")
+
+		o.close()
 
 
 class Simulator:
