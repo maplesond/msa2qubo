@@ -4,9 +4,14 @@ import os
 import argparse
 import math
 import numpy
+import copy
+import sys
 from Bio import SeqIO
 
-
+# This class represents the binary variables required for a given number of sequences
+# To use the class initialise, and optionally override default parameters representing the max gap size and weightings,
+# then add BioPython sequence records that will represent the MSA.  Finally call createBVMatrix to create the symettric
+# matrix containing binary variable coefficients.
 class BVC :
 
     __N = 0
@@ -66,6 +71,18 @@ class BVC :
     def p(self):
         return math.ceil(numpy.log2(self.__P + 1))
 
+    def x(self):
+        return self.__x
+
+    def l0(self):
+        return self.__l0
+
+    def l1(self):
+        return self.__l1
+
+    def l2(self):
+        return self.__l2
+
     # Size of the solution space
     def calc_solutionSpaceSize(self):
         return self.__N * self.M()
@@ -78,10 +95,24 @@ class BVC :
     def calc_maxBV(self):
         return self.calc_minBV() + math.ceil(self.__N*(self.__N-1)*(self.__Lmax**2)*(1+2*self.m())/2)
 
+    # Return the actual number of binary variables required for this problem
+    def get_NbBV(self):
+        #TODO Need to work out how to get the number of bvs required for E2, for now just assume maxBV
+        return self.calc_maxBV()
+
+    # Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap
+    def get_gVarOffset(self):
+        return self.__K * self.m()
+
+    # Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward
+    def get_rVarOffset(self):
+        return self.get_gVarOffset() + (self.__K * self.p())
+
+    # Updates the binary variable matrix with coefficients from E0
     def __addE0Coefficients(self):
         x_bits = self.m()
         g_bits = self.p()
-        g_offset = self.__K * self.m()
+        g_offset = self.get_gVarOffset()
         for k in range(0, len(self.__x) - 1):
             sum_j = 0
             for j in range(0, len(self.__x[k])):
@@ -117,9 +148,10 @@ class BVC :
                     self.__bvm[gi,xi] -= self.__l0
 
 
+    # Updates the binary variable matrix with coefficients from E1
     def __addE1Coefficients(self):
         bits = self.p()
-        offset = self.__K * self.m()      # The offset required to get to the gap variables here
+        offset = self.get_gVarOffset()      # The offset required to get to the gap variables here
         for k in range(0, self.__N - 1) :
             for j in range(1, len(self.__x[k])-1) :
                 g_pos = k*j*bits
@@ -127,66 +159,156 @@ class BVC :
                     h = offset + g_pos + i
                     self.__bvm[h,h] += self.__l1
 
+    # Updates the binary variable matrix with coefficients from E1
+    def __addE2Coefficients(self):
+        i = 1
+        #TODO
+
+    # Creates the symmetric binary variable matrix of coefficients from the energy function
     def createBVMatrix(self):
         size = self.calc_maxBV()
         self.__bvm = numpy.zeros((size, size))
         self.__addE0Coefficients()
         self.__addE1Coefficients()
+        self.__addE2Coefficients()
         return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
+    # Outputs QUBO format representation
+    def writeQUBO(self, outfilepath, infilepath):
+        o = open(outfilepath, 'w')
+
+        o.write("c\n")
+        o.write("c QUBO format representation of " + infilepath + "\n")
+        o.write("c\n")
+
+        # Assume unconstrained target "0"
+        o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.get_NbBV()) + " X\n")
+
+        # Output diagonals
+        o.write("c\n")
+        o.write("c diagonals\n")
+        for i in range(0, self.get_NbBV() - 1):
+            v = self.__bvm[i,i]
+            if v != 0:
+                o.write(str(i) + " " + str(i) + " " + str(v) + "\n")
+
+        # Output elements
+        o.write("c\n")
+        o.write("c elements\n")
+        for i in range(0, self.get_NbBV() - 2):
+            for j in range(i+1, self.get_NbBV() - 2):
+                v = self.__bvm[i,j]
+                if v != 0:
+                    o.write(str(i) + " " + str(j) + " " + str(v) + "\n")
 
 
-# Calculates E0 ... For use in simulating the quantum computer
-def calcE0(l0, x, G):
-    sum_k = 0
-    for k in range(0, len(x) - 1):
-        sum_j = 0
-        for j in range(0, len(x[k])):
-            term_1 = x[k][j+1] - x[k][j] - 1 - G[k][j+1]
-            term_2 = x[k][0] - G[k][0]
-            sum_j += (term_1 * term_1) + (term_2 * term_2)
 
-        sum_k += sum_j
+# This class is still work in progress.  The idea is to be able to simulate the D-Wave machine for a very small number
+# of binary variables: < 30; using a brute force approach
+class Simulator:
 
-    return l0 * sum_k
+    __index = 0
+    __bv = []
 
-# Calculates E1 ... For use in simulating the quantum computer
-def calcE1(l1, N, G):
+    def __init__(self, bvc):
+        self.data = []
+        self.__bvc = bvc
+        self.__bv = [0]*bvc.get_NbBV()
 
-    sum_k = 0
-    for k in range(0, N - 1) :
-        sum_j = 0
-        for j in range(1, len(G[k])-1):
-            sum_j += G[k][j] * G[k][j]
-        sum_k += sum_j
 
-    return l1 * sum_k
+    def __x(self, k, j):
+        val = 0
+        offset = (k * self.__bvc.K() + j) * self.__bvc.m()
+        for i in range(0, self.__bvc.m()):
+            val += (self.__bv[offset + i] * 2**i)
+        return val
 
-# Calculates E2 ... For use in simulating the quantum computer
-def calcE2(l2, x, W, r):
+    def __G(self, k, j):
+        val = 0
+        offset = self.__bvc.get_gVarOffset() + (k * self.__bvc.K() + j) * self.__bvc.p()
+        for i in range(0, self.__bvc.p()):
+            val += (self.__bv[offset + i] * 2**i)
+        return val
 
-    N = len(x)
-    sum_k=0
-    for k in range(0, N - 2):
-        sum_q=0
-        for q in range(k+1, N-1):
-            sum_i=0
-            for i in range(0, len(x[k])-1):
-                sum_j=0
-                for j in range(0, len(x[q])-1):
-                    sum_j += W[i][j][k][q] * r[i][j][k][q] * math.floor(1 - l2 * math.pow(x[k][i] - x[q][j], 2))
-                sum_i += sum_j
-            sum_q += sum_i
-        sum_k += sum_q
+    # Calculates E0 ... For use in simulating the quantum computer
+    def __calcE0(self):
+        x = self.__bvc.x()
+        sum_k = 0
+        for k in range(0, len(x) - 1):
+            sum_j = 0
+            for j in range(0, len(x[k])):
+                term_1 = self.__x(k,j+1) - self.__x(k,j) - 1 - self.__G(k,j+1)
+                term_2 = self.__x(k,0) - self.__G(k,0)
+                sum_j += (term_1 ** 2) + (term_2 ** 2)
 
-    return -sum_k
+            sum_k += sum_j
+
+        return self.__bvc.l0() * sum_k
+
+    # Calculates E1 ... For use in simulating the quantum computer
+    def __calcE1(self):
+        x = self.__bvc.x()
+        sum_k = 0.0
+        for k in range(0, self.__bvc.N() - 1) :
+            sum_j = 0.0
+            for j in range(1, len(x[k])-1):
+                sum_j += self.__G(k,j) ** 2
+            sum_k += sum_j
+
+        return self.__bvc.l1() * sum_k
+
+    # Calculates E2 ... For use in simulating the quantum computer
+    def __calcE2(self):
+        x = self.__bvc.x()
+        N = self.__bvc.N()
+        sum_k=0.0
+        for k in range(0, N - 2):
+            sum_q=0.0
+            for q in range(k+1, N-1):
+                sum_i=0.0
+                for i in range(0, len(x[k])-1):
+                    sum_j=0.0
+                    for j in range(0, len(x[q])-1):
+                        #sum_j += W[i][j][k][q] * r[i][j][k][q] * math.floor(1 - self.__bvc.l2() * ((self.__x(k,i) - self.__x(q,j)) ** 2))
+                        #TODO Ignore weighting and reward matrix for now (this obviously won't work in practice!!)
+                        sum_j += math.floor(1 - self.__bvc.l2() * ((self.__x(k,i) - self.__x(q,j)) ** 2))
+                    sum_i += sum_j
+                sum_q += sum_i
+            sum_k += sum_q
+
+        return -sum_k
+
+    def __calcSolutionForInstance(self):
+        return self.__calcE0() + self.__calcE1() + self.__calcE2()
+
+    def __incrementBV(self):
+        bvlen = len(self.__bv)
+        bvstr = format(self.__index, '0'+str(bvlen) + 'b')
+        for i in range(0, bvlen - 1):
+            self.__bv[i] = int(bvstr[i])
+
+        # Value for next iteration
+        self.__index += 1
+
+    def calcSolution(self):
+        min_solution =  copy.deepcopy(self.__bv)
+        min_val = sys.float_info.max
+        nbPermutations = 2 ** len(self.__bv)
+        for i in range(1, nbPermutations):
+            self.__incrementBV()
+            val = self.__calcSolutionForInstance()
+            if (val < min_val) :
+                min_val = val
+                min_solution = copy.deepcopy(self.__bv)
+
+        return min_val, min_solution
 
 
 def main():
 
     parser = argparse.ArgumentParser("Convert Fasta file containing multiple sequences to align, into QUBO format")
     parser.add_argument("input", help="The file containing sequences to align (to be converted into QUBO)")
-    parser.add_argument("-o", "--output", help="The output file, containing the QUBO representation of the MSA problem")
+    parser.add_argument("-o", "--output", required=True, help="The output file, containing the QUBO representation of the MSA problem")
     parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
     parser.add_argument("-l0", "--position_weighting", type=float, default=0.8, help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
     parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1, help="The weighting to apply to gap penalties")
@@ -231,5 +353,15 @@ def main():
 
     m = bvc.createBVMatrix()
     print (m)
+
+    # Write QUBO file to disk
+    bvc.writeQUBO(args.output, args.input)
+
+    # Find solution???
+    #sim = Simulator(bvc)
+    #val, bv = sim.calcSolution()
+
+    #print ("Min value is: " + str(val))
+    #print ("Binary variables are:\n" + bv)
 
 main()
