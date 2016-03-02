@@ -19,6 +19,7 @@ class BVC:
 	__K = 0
 
 	__x = []
+	__W = numpy.zeros((0, 0))
 
 	__bvm = numpy.zeros((0, 0))
 
@@ -46,9 +47,8 @@ class BVC:
 				"Bounds on total # Binary Variables required: " + str(self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
 				"# Binary Variables required for positioning: " + str(self.get_NbPositioningVars()) + "\n" \
 				"# Binary Variables required for gaps: " + str(self.get_NbGapVars()) + "\n" \
-				"# Binary Variables required for rewards: " + str(self.get_NbRewardVars()) + "\n" \
-				"# Binary Variables required for y and z (each): " + str(self.get_NbYVars()) + "\n" \
-				"Total # Binary Variables required: " + str(self.get_NbBV()) + "\n" \
+				"Max Binary Variables required for rewards: " + str(self.get_NbRewardVars()) + "\n" \
+				"Max Binary Variables required for y and z (each): " + str(self.get_NbYVars()) + "\n\n"
 
 	def add_record(self, record):
 		"""Adds a biopython record and updates the state of this object accordingly"""
@@ -206,27 +206,56 @@ class BVC:
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
 		for k in range(self.__N - 1):
+			klen = len(self.__x[k])
+			r_k = self.get_rVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2)
+			y_k = self.get_yVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2 * self.m())
+			z_k = self.get_zVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2 * self.m())
 			for q in range(k + 1, self.__N):
-				klen = len(self.__x[k])
+				qlen = len(self.__x[q])
 				b_k = k * klen * self.m()
-				b_q = q * klen * self.m()
+				b_q = q * qlen * self.m()
+				r_kq = r_k + ((q - k - 1) * self.__Lmax ** 2)
+				y_kq = y_k + ((q - k - 1) * self.__Lmax ** 2 * self.m())
+				z_kq = z_k + ((q - k - 1) * self.__Lmax ** 2 * self.m())
 				for i in range(klen):
-					qlen = len(self.__x[q])
+					r_ikq = r_kq + (i * self.__Lmax)
+					y_ikq = y_kq + (i * self.__Lmax * self.m())
+					z_ikq = z_kq + (i * self.__Lmax * self.m())
 					for j in range(qlen):
 						b_ki = b_k + (i * self.m())
 						b_qj = b_q + (j * self.m())
-						r_ijkq = self.get_rVarOffset() + k * j
+						w_ijkq = self.__W[i,j,k,q]
+						wl2 = w_ijkq * self.__l2
+						wl2d = wl2 * self.__d
+						r_ijkq = r_ikq + j
+						y_ijkq = y_ikq + (j * self.m())
+						z_ijkq = z_ikq + (j * self.m())
 						for b_a in range(self.m()):
 							b_kia = b_ki + b_a
 							b_qja = b_qj + b_a
-							#y_ijkqa = self.get_yVarOffset() +
-							#z_ijkqa = self.get_zVarOffset()
-							#self.__bvm[h, h] += self.__l1
+							y_ijkqa = y_ijkq + b_a
+							z_ijkqa = z_ijkq + b_a
 
-						# sum_j += W[i][j][k][q] * r[i][j][k][q] * math.floor(1 - self.__bvc.l2() * ((self.__x(k,i) - self.__x(q,j)) ** 2))
-						# TODO Ignore weighting and reward matrix for now (this obviously won't work in practice!!)
-						#sum_j += math.floor(1 - self.__bvc.l2() * ((self.__x(k, i) - self.__x(q, j)) ** 2))
-			
+							self.__bvm[r_ijkq, r_ijkq] += w_ijkq
+
+							self.__bvm[y_ijkqa, b_kia] -= wl2
+							self.__bvm[y_ijkqa, y_ijkqa] -= 3 * wl2d
+							self.__bvm[r_ijkq, b_kia] -= wl2d
+							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
+							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
+
+							self.__bvm[z_ijkqa, b_qja] += wl2
+							self.__bvm[z_ijkqa, z_ijkqa] -= 3 * wl2d
+							self.__bvm[r_ijkq, b_qja] -= wl2d
+							self.__bvm[z_ijkqa, r_ijkq] += 2 * wl2d
+							self.__bvm[z_ijkqa, b_qja] += 2 * wl2d
+
+							self.__bvm[y_ijkqa, b_qja] -= 2 * wl2
+							self.__bvm[y_ijkqa, y_ijkqa] -= 3 * wl2d
+							self.__bvm[r_ijkq, b_kia] -= wl2d
+							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
+							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
+
 
 	def __calcNbDiagonals(self):
 		count = 0
@@ -243,9 +272,32 @@ class BVC:
 					count += 1
 		return count
 
+	def calcActiveBVs(self):
+		count = 0
+		for i in range(self.get_NbBV()):
+			for j in range(i, self.get_NbBV()):
+				if self.__bvm[i, j] != 0.0:
+					count += 1
+					break
+		return count
+
+	def createW(self):
+
+		N=self.__N
+		self.__W=numpy.empty(shape=(self.__Lmax,self.__Lmax,N,N))
+
+		for k in range(N-1):
+			for q in range(k+1,N):
+				for i in range(len(self.__x[k])):
+					for j in range(len(self.__x[q])):
+						self.__W[i,j,k,q] = 1 if self.__x[k][i] == self.__x[q][j] else 0
+
+	def w(self, i, j, k, q):
+		return self.__W[i,j,k,q]
+
 	def createBVMatrix(self):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
-		size = self.get_NbBV()
+		size = self.get_NbBV() * 2
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
@@ -298,14 +350,14 @@ class Simulator:
 	def __x(self, k, j):
 		val = 0
 		offset = (k * self.__bvc.K() + j) * self.__bvc.m()
-		for i in range(0, self.__bvc.m()):
+		for i in range(self.__bvc.m()):
 			val += (self.__bv[offset + i] * 2 ** i)
 		return val
 
 	def __G(self, k, j):
 		val = 0
 		offset = self.__bvc.get_gVarOffset() + (k * self.__bvc.K() + j) * self.__bvc.p()
-		for i in range(0, self.__bvc.p()):
+		for i in range(self.__bvc.p()):
 			val += (self.__bv[offset + i] * 2 ** i)
 		return val
 
@@ -313,9 +365,10 @@ class Simulator:
 		"""Calculates E0 from a defined set of binary variables"""
 		x = self.__bvc.x()
 		sum_k = 0
-		for k in range(0, len(x) - 1):
+		for k in range(self.__N):
+			klen = len(self.__x[k])
 			sum_j = 0
-			for j in range(0, len(x[k])):
+			for j in range(klen - 1):
 				term_1 = self.__x(k, j + 1) - self.__x(k, j) - 1 - self.__G(k, j + 1)
 				term_2 = self.__x(k, 0) - self.__G(k, 0)
 				sum_j += (term_1 ** 2) + (term_2 ** 2)
@@ -328,9 +381,9 @@ class Simulator:
 		"""Calculates E1 from a defined set of binary variables"""
 		x = self.__bvc.x()
 		sum_k = 0.0
-		for k in range(0, self.__bvc.N() - 1):
+		for k in range(self.__bvc.N()):
 			sum_j = 0.0
-			for j in range(1, len(x[k]) - 1):
+			for j in range(1, len(x[k])):
 				sum_j += self.__G(k, j) ** 2
 			sum_k += sum_j
 
@@ -341,16 +394,17 @@ class Simulator:
 		x = self.__bvc.x()
 		N = self.__bvc.N()
 		sum_k = 0.0
-		for k in range(0, N - 2):
+		for k in range(N - 1):
 			sum_q = 0.0
-			for q in range(k + 1, N - 1):
+			for q in range(k + 1, N):
 				sum_i = 0.0
-				for i in range(0, len(x[k]) - 1):
+				for i in range(len(x[k])):
 					sum_j = 0.0
-					for j in range(0, len(x[q]) - 1):
-						# sum_j += W[i][j][k][q] * r[i][j][k][q] * math.floor(1 - self.__bvc.l2() * ((self.__x(k,i) - self.__x(q,j)) ** 2))
-						# TODO Ignore weighting and reward matrix for now (this obviously won't work in practice!!)
-						sum_j += math.floor(1 - self.__bvc.l2() * ((self.__x(k, i) - self.__x(q, j)) ** 2))
+					for j in range(len(x[q])):
+						w_ijkq = self.__bvc.w(i,j,k,q)
+						r_ijkq = self.__bvc.r(i,j,k,q)
+						if w_ijkq != 0.0 and r_ijkq != 0.0:
+							sum_j += w_ijkq * r_ijkq * math.floor(1 - self.__bvc.l2() * ((self.__x(k, i) - self.__x(q, j)) ** 2))
 					sum_i += sum_j
 				sum_q += sum_i
 			sum_k += sum_q
@@ -365,7 +419,7 @@ class Simulator:
 		"""Increment the state of binary variables by 1"""
 		bvlen = len(self.__bv)
 		bvstr = format(self.__index, '0' + str(bvlen) + 'b')
-		for i in range(0, bvlen - 1):
+		for i in range(bvlen):
 			self.__bv[i] = int(bvstr[i])
 
 		# Value for next iteration
@@ -376,7 +430,7 @@ class Simulator:
 		min_solution = copy.deepcopy(self.__bv)
 		min_val = sys.float_info.max
 		nbPermutations = 2 ** len(self.__bv)
-		for i in range(1, nbPermutations):
+		for i in range(nbPermutations):
 			self.__incrementBV()
 			val = self.__calcSolutionForInstance()
 			if (val < min_val):
@@ -440,11 +494,17 @@ def main():
 
 	# Create matrix
 	print()
+	print("Creating W matrix ...", end="")
+	sys.stdout.flush()
+	bvc.createW()
+	# print (m)
+	print(" done")
 	print("Creating matrix of coefficients of binary variables ...", end="")
 	sys.stdout.flush()
 	bvc.createBVMatrix()
 	# print (m)
 	print(" done")
+	print("Number of active binary variables: " + str(bvc.calcActiveBVs()))
 
 	# Write QUBO file to disk
 	print("Writing QUBO output to disk ...", end="")
