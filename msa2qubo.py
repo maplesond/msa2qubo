@@ -22,9 +22,10 @@ class BVC:
 
 	__bvm = numpy.zeros((0, 0))
 
-	def __init__(self, P=1, l0=0.8, l1=1.0, l2=10.0):
+	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0):
 		self.data = []
 		self.__P = P
+		self.__d = d
 		self.__l0 = l0
 		self.__l1 = l1
 		self.__l2 = l2
@@ -39,12 +40,15 @@ class BVC:
 				"p=" + str(self.p()) + "\tNumber of binary variables required to represent each gap\n\n" \
 				"l0=" + str(self.__l0) + "\tPosition weighting\n" \
 				"l1=" + str(self.__l1) + "\tGap weighting\n" \
-				"l2=" + str(self.__l2) + "\tReward weighting\n\n" \
+				"l2=" + str(self.__l2) + "\tReward weighting\n" \
+				"d=" + str(self.__d) + "\tScaling factor when substituting products of 3BVs to 2BVs\n\n" \
 				"Solution space will contain " + str(self.calc_solutionSpaceSize()) + " cells\n\n" \
-				"Total # Binary Variables required: " + str(self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
+				"Bounds on total # Binary Variables required: " + str(self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
 				"# Binary Variables required for positioning: " + str(self.get_NbPositioningVars()) + "\n" \
 				"# Binary Variables required for gaps: " + str(self.get_NbGapVars()) + "\n" \
-				"# Binary Variables required for rewards: ??\n" # + str(self.get_NbRewardVars()) + "\n" \
+				"# Binary Variables required for rewards: " + str(self.get_NbRewardVars()) + "\n" \
+				"# Binary Variables required for y and z (each): " + str(self.get_NbYVars()) + "\n" \
+				"Total # Binary Variables required: " + str(self.get_NbBV()) + "\n" \
 
 	def add_record(self, record):
 		"""Adds a biopython record and updates the state of this object accordingly"""
@@ -62,6 +66,9 @@ class BVC:
 
 	def P(self):
 		return self.__P
+
+	def d(self):
+		return self.__d
 
 	def M(self):
 		"""Returns the length of each row in solution space"""
@@ -101,8 +108,7 @@ class BVC:
 
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
-		# TODO Need to work out how to get the number of bvs required for E2, for now just assume maxBV
-		return self.calc_maxBV()
+		return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
 
 	def get_gVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
@@ -110,7 +116,15 @@ class BVC:
 
 	def get_rVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
-		return self.get_gVarOffset() + (self.__K * self.p())
+		return self.get_gVarOffset() + self.get_NbGapVars()
+
+	def get_yVarOffset(self):
+		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
+		return self.get_rVarOffset() + self.get_NbRewardVars()
+
+	def get_zVarOffset(self):
+		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
+		return self.get_yVarOffset() + self.get_NbYVars()
 
 	def get_NbPositioningVars(self):
 		return self.__K * self.m()
@@ -119,90 +133,124 @@ class BVC:
 		return self.__K * self.p()
 
 	def get_NbRewardVars(self):
-		return 0
+		count = 0
+		for k in range(self.__N - 1):
+			klen = len(self.__x[k])
+			for q in range(k + 1, self.__N):
+				qlen = len(self.__x[q])
+				for i in range(klen):
+					for j in range(qlen):
+						count += 1
+		return count
+
+	def get_NbYVars(self):
+		return self.get_NbRewardVars() * self.m()
+
+	def get_NbZVars(self):
+		return self.get_NbRewardVars() * self.m()
 
 	def __addE0Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E0"""
-		x_bits = self.m()
-		g_bits = self.p()
-		g_offset = self.get_gVarOffset()
-		for k in range(0, len(self.__x) - 1):
-			sum_j = 0
-			for j in range(0, len(self.__x[k])):
-				x1_pos = k * (j + 1) * x_bits
-				x0_pos = k * j * x_bits
-				g_pos = g_offset + (k * (j + 1) * g_bits)
-				for i in range(0, x_bits - 1):
-					x0i = x0_pos + i
-					x1i = x1_pos + i
-					gi = g_offset + g_pos + i
-					self.__bvm[x1i, x1i] += self.__l0 ** 2
-					self.__bvm[x1i, x0i] -= self.__l0
-					self.__bvm[x1i, x1i] -= self.__l0
-					self.__bvm[x1i, gi] -= self.__l0
-					self.__bvm[x0i, x1i] -= self.__l0
-					self.__bvm[x0i, x0i] += self.__l0 ** 2
-					self.__bvm[x0i, x0i] -= self.__l0
-					self.__bvm[x0i, gi] += self.__l0
-					self.__bvm[x1i, x1i] -= self.__l0
-					self.__bvm[x0i, x0i] -= self.__l0
-					# +1 here??? What do with a constant?
-					self.__bvm[gi, gi] += self.__l0
-					self.__bvm[gi, x1i] -= self.__l0
-					self.__bvm[gi, x0i] += self.__l0
-					self.__bvm[gi, gi] += self.__l0
-					self.__bvm[gi, gi] += self.__l0 ** 2
+		for k in range(self.__N):
+			klen = len(self.__x[k])
+			b_k = k * klen * self.m()
+			g_k = self.get_gVarOffset() + k * klen * self.p()
+			for j in range(klen - 1):
+				b_kj = b_k + (j * self.m())
+				b_kj1 = b_k + ((j + 1) * self.m())
+				g_kj1 = g_k + ((j + 1) * self.p())
+				for b_a in range(self.m()):
+					b_kja = b_kj + b_a
+					b_kj1a = b_kj1 + b_a
+					for g_a in range(self.p()):
+						g_kj1a = g_kj1 + g_a
+						self.__bvm[b_kj1a, b_kj1a] += self.__l0 ** 2
+						self.__bvm[b_kj1a, b_kja] -= self.__l0
+						self.__bvm[b_kj1a, b_kj1a] -= self.__l0
+						self.__bvm[b_kj1a, g_kj1a] -= self.__l0
+						self.__bvm[b_kja, b_kj1a] -= self.__l0
+						self.__bvm[b_kja, b_kja] += self.__l0 ** 2
+						self.__bvm[b_kja, b_kja] -= self.__l0
+						self.__bvm[b_kja, g_kj1a] += self.__l0
+						self.__bvm[b_kj1a, b_kj1a] -= self.__l0
+						self.__bvm[b_kja, b_kja] -= self.__l0
+						# +1 here??? What do wath a constant?
+						self.__bvm[g_kj1a, g_kj1a] += self.__l0
+						self.__bvm[g_kj1a, b_kj1a] -= self.__l0
+						self.__bvm[g_kj1a, b_kja] += self.__l0
+						self.__bvm[g_kj1a, g_kj1a] += self.__l0
+						self.__bvm[g_kj1a, g_kj1a] += self.__l0 ** 2
 
 				# Coefficients for second term (gap prior to first character)
-				x_pos = k * 1 * x_bits
-				g_pos = g_offset + (k * 1 * g_bits)
-				for i in range(0, x_bits - 1):
-					xi = x_pos + i
-					gi = g_offset + g_pos + i
-					self.__bvm[xi, xi] += self.__l0 ** 2
-					self.__bvm[gi, gi] += self.__l0 ** 2
-					self.__bvm[xi, gi] -= self.__l0
-					self.__bvm[gi, xi] -= self.__l0
+				for b_a in range(self.m()):
+					for g_a in range(self.p()):
+						b_ka = b_k + b_a
+						g_ka = g_k + g_a
+						self.__bvm[b_ka, b_ka] += self.__l0 ** 2
+						self.__bvm[g_ka, g_ka] += self.__l0 ** 2
+						self.__bvm[b_ka, g_ka] -= self.__l0
+						self.__bvm[g_ka, b_ka] -= self.__l0
 
 	def __addE1Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E1"""
-		bits = self.p()
-		offset = self.get_gVarOffset()  # The offset required to get to the gap variables here
-		for k in range(0, self.__N - 1):
-			for j in range(1, len(self.__x[k]) - 1):
-				g_pos = k * j * bits
-				for i in range(0, bits - 1):
-					h = offset + g_pos + i
-					self.__bvm[h, h] += self.__l1
+		for k in range(self.__N):
+			klen = len(self.__x[k])
+			g_k = self.get_gVarOffset() + k * klen * self.p()
+			for j in range(1, klen):
+				g_kj = g_k + (j * self.p())
+				for a in range(0, self.p() - 1):
+					g_kja = g_kj + a
+					print(g_kja)
+					self.__bvm[g_kja, g_kja] += ((2 ** a) * self.__l1) ** 2
 
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
-		i = 1
-		# TODO Implement E2 coefficients
+		for k in range(self.__N - 1):
+			for q in range(k + 1, self.__N):
+				klen = len(self.__x[k])
+				b_k = k * klen * self.m()
+				b_q = q * klen * self.m()
+				for i in range(klen):
+					qlen = len(self.__x[q])
+					for j in range(qlen):
+						b_ki = b_k + (i * self.m())
+						b_qj = b_q + (j * self.m())
+						r_ijkq = self.get_rVarOffset() + k * j
+						for b_a in range(self.m()):
+							b_kia = b_ki + b_a
+							b_qja = b_qj + b_a
+							#y_ijkqa = self.get_yVarOffset() +
+							#z_ijkqa = self.get_zVarOffset()
+							#self.__bvm[h, h] += self.__l1
+
+						# sum_j += W[i][j][k][q] * r[i][j][k][q] * math.floor(1 - self.__bvc.l2() * ((self.__x(k,i) - self.__x(q,j)) ** 2))
+						# TODO Ignore weighting and reward matrix for now (this obviously won't work in practice!!)
+						#sum_j += math.floor(1 - self.__bvc.l2() * ((self.__x(k, i) - self.__x(q, j)) ** 2))
+			
 
 	def __calcNbDiagonals(self):
 		count = 0
-		for i in range(0, self.get_NbBV() - 1):
-			if self.__bvm[i, i] != 0:
+		for i in range(self.get_NbBV()):
+			if self.__bvm[i, i] != 0.0:
 				count += 1
 		return count
 
 	def __calcNbElements(self):
 		count = 0
-		for i in range(0, self.get_NbBV() - 2):
-			for j in range(i + 1, self.get_NbBV() - 2):
-				if self.__bvm[i, j] != 0:
+		for i in range(self.get_NbBV() - 1):
+			for j in range(i + 1, self.get_NbBV()):
+				if self.__bvm[i, j] != 0.0:
 					count += 1
 		return count
 
 	def createBVMatrix(self):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
-		size = self.calc_maxBV()
+		size = self.get_NbBV()
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
 		self.__addE2Coefficients()
-		return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
+		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):
 		"""Outputs QUBO format representation"""
@@ -218,7 +266,7 @@ class BVC:
 		# Output diagonals
 		o.write("c\n")
 		o.write("c diagonals\n")
-		for i in range(0, self.get_NbBV() - 1):
+		for i in range(self.get_NbBV()):
 			v = self.__bvm[i, i]
 			if v != 0:
 				o.write(str(i) + " " + str(i) + " " + str(v) + "\n")
@@ -226,8 +274,8 @@ class BVC:
 		# Output elements
 		o.write("c\n")
 		o.write("c elements\n")
-		for i in range(0, self.get_NbBV() - 2):
-			for j in range(i + 1, self.get_NbBV() - 2):
+		for i in range(self.get_NbBV() - 1):
+			for j in range(i + 1, self.get_NbBV()):
 				v = self.__bvm[i, j]
 				if v != 0:
 					o.write(str(i) + " " + str(j) + " " + str(v) + "\n")
@@ -344,6 +392,7 @@ def main():
 	parser.add_argument("-o", "--output", required=True,
 						help="The output file, containing the QUBO representation of the MSA problem")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
+	parser.add_argument("-d", type=float, default=2.0, help="Delta.  The scaling factor to apply when converting products of 3BVs to 2BVs.")
 	parser.add_argument("-s", "--simulate", action='store_true', default=False,
 						help="Whether to try and simulate D-Wave and come up with a solution to the problem.  Only runs if number of binary variables is < 30.")
 	parser.add_argument("-l0", "--position_weighting", type=float, default=0.8,
@@ -376,7 +425,7 @@ def main():
 	print("Input:")
 
 	# Collect variables
-	bvc = BVC(args.P, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
+	bvc = BVC(P=args.P, d=args.d, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
 	for r in records:
 		bvc.add_record(r)
 
@@ -393,7 +442,7 @@ def main():
 	print()
 	print("Creating matrix of coefficients of binary variables ...", end="")
 	sys.stdout.flush()
-	m = bvc.createBVMatrix()
+	bvc.createBVMatrix()
 	# print (m)
 	print(" done")
 
