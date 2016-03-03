@@ -446,7 +446,7 @@ def main():
 	parser.add_argument("-o", "--output", required=True,
 						help="The output file, containing the QUBO representation of the MSA problem")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
-	parser.add_argument("-d", type=float, default=2.0, help="Delta.  The scaling factor to apply when converting products of 3BVs to 2BVs.")
+	parser.add_argument("-d", "--delta", type=float, default=2.0, help="Delta.  The scaling factor to apply when converting products of 3BVs to 2BVs.")
 	parser.add_argument("-s", "--simulate", action='store_true', default=False,
 						help="Whether to try and simulate D-Wave and come up with a solution to the problem.  Only runs if number of binary variables is < 30.")
 	parser.add_argument("-l0", "--position_weighting", type=float, default=0.8,
@@ -470,6 +470,10 @@ def main():
 		print("-l2 must be > 1.0")
 		exit(1)
 
+	if args.delta <= 1.0:
+		print("-d must be > 1.0")
+		exit(1)
+
 	print("Loading input into memory...", end="")
 	handle = open(args.input, "rU")
 	records = list(SeqIO.parse(handle, "fasta"))
@@ -479,7 +483,7 @@ def main():
 	print("Input:")
 
 	# Collect variables
-	bvc = BVC(P=args.P, d=args.d, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
+	bvc = BVC(P=args.P, d=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
 	for r in records:
 		bvc.add_record(r)
 
@@ -504,7 +508,7 @@ def main():
 	bvc.createBVMatrix()
 	# print (m)
 	print(" done")
-	print("Number of active binary variables: " + str(bvc.calcActiveBVs()))
+	print("Number of active binary variables: ", bvc.calcActiveBVs())
 
 	# Write QUBO file to disk
 	print("Writing QUBO output to disk ...", end="")
@@ -523,8 +527,8 @@ def main():
 			sim = Simulator(bvc)
 			val, bv = sim.calcSolution()
 
-			print("Min value is: " + str(val))
-			print("Binary variables are:\n" + bv)
+			print("Min value is: ", val)
+			print("Binary variables are:\n", bv)
 
 
 main()
