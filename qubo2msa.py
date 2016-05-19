@@ -9,6 +9,69 @@ import sys
 from Bio import SeqIO
 from bvc import BVC
 
+class Qubo2Msa:
+
+	def __init__(self, settings, solution, input, output, verbose):
+		self.data = []
+		self.settings = settings
+		self.solution = solution
+		self.input = input
+		self.output = output
+		self.verbose = verbose
+
+	def run(self):
+
+		bvc = BVC(settings_file=self.settings)
+		print("Loaded QUBO settings")
+		print()
+		bvc.load_bvs(self.solution)
+		print("Loaded binary variables")
+
+		print("Loading input into memory...", end="")
+		handle = open(self.input, "rU")
+		records = list(SeqIO.parse(handle, "fasta"))
+		handle.close()
+		print(" done")
+		print()
+
+		print("Settings:")
+		print(bvc)
+		print()
+
+		msa = bvc.make_msa()
+		print("Made MSA")
+
+		print()
+		print("Position matrix:")
+		for sa in msa:
+			print(sa)
+
+		# Shouldn't need this when run on the real thing but for now on random data M is not necesarily sufficient to
+		# hold the potential position values
+		width = 2 ** bvc.m()
+
+		print()
+		print("MSA:")
+		ss = [[" " for x in range(width)] for x in range(bvc.N())]
+
+		for i in range(bvc.N()):
+			sa = msa[i]
+			rec = records[i]
+			if not len(sa) == len(rec):
+				print("ERROR")
+				exit(1)
+
+			for j in range(len(sa)):
+				pos = sa[j]
+				base = rec.seq[j]
+				ss[i][pos] = base
+
+		for i in range(bvc.N()):
+			for j in range(width):
+				print(ss[i][j], end="")
+			print()
+
+
 
 def main():
 	parser = argparse.ArgumentParser("Convert QUBO output (for now a list of line separated 0's and 1's) into an MSA")
@@ -19,56 +82,9 @@ def main():
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
-	bvc = BVC(settings_file=args.settings)
-	print("Loaded QUBO settings")
-	print()
-	bvc.load_bvs(args.bv)
-	print("Loaded binary variables")
+	q2m = Qubo2Msa(settings = args.settings, solution=args.bv, input=args.input, output=args.output, verbose=args.verbose)
+	q2m.run()
 
-	print("Loading input into memory...", end="")
-	handle = open(args.input, "rU")
-	records = list(SeqIO.parse(handle, "fasta"))
-	handle.close()
-	print(" done")
-	print()
-
-	print("Settings:")
-	print(bvc)
-	print()
-
-	msa = bvc.make_msa()
-	print("Made MSA")
-
-	print()
-	print("Position matrix:")
-	for sa in msa:
-		for base in sa:
-			print(base, end="")
-		print()
-
-	# Shouldn't need this when run on the real thing but for now on random data M is not necesarily sufficient to
-	# hold the potential position values
-	width = 2 ** bvc.m()
-
-	print()
-	print("MSA:")
-	ss = [[" " for x in range(width)] for x in range(bvc.N())]
-
-	for i in range(bvc.N()):
-		sa = msa[i]
-		rec = records[i]
-		if not len(sa) == len(rec):
-			print("ERROR")
-			exit(1)
-
-		for j in range(len(sa)):
-			pos = sa[j]
-			base = rec.seq[j]
-			ss[i][pos] = base
-
-	for i in range(bvc.N()):
-		for j in range(width):
-			print(ss[i][j], end="")
-		print()
-
-main()
+if __name__ == "__main__":
+   # stuff only to run when not called via 'import' here
+   main()

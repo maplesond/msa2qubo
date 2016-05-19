@@ -1,14 +1,76 @@
 #!/usr/bin/env python3
 
-import os
 import argparse
 import math
-import numpy
 import copy
 import sys
 from Bio import SeqIO
 from bvc import BVC
 
+
+class Msa2Qubo:
+
+	def __init__(self, input, output, P, delta, l0, l1, l2, verbose):
+		self.data = []
+		self.input = input
+		self.output = output
+		self.P = P
+		self.delta = delta
+		self.l0 = l0
+		self.l1 = l1
+		self.l2 = l2
+		self.verbose = verbose
+
+
+	def run(self):
+		print("Loading input into memory...", end="")
+		handle = open(self.input, "rU")
+		records = list(SeqIO.parse(handle, "fasta"))
+		handle.close()
+		print(" done")
+		print()
+		print("Input:")
+
+		# Collect variables
+		bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2)
+		for r in records:
+			bvc.add_record(r)
+
+			# Input will only be small so just output every sequence found
+			print(">" + r.id)
+			print(r.seq)
+
+		print()
+
+		# Print current state of variables
+		print(bvc)
+
+		# Save settings file
+		print()
+		bvc.save_settings(self.output + ".settings")
+		print("Saved settings to " + self.output + ".settings")
+
+		# Create matrix
+		print()
+		print("Creating W matrix ...", end="")
+		sys.stdout.flush()
+		bvc.createW()
+		# print (m)
+		print(" done")
+		print("Creating matrix of coefficients of binary variables ...", end="")
+		sys.stdout.flush()
+		bvc.createBVMatrix()
+		# print (m)
+		print(" done")
+		print("Number of active binary variables: ", bvc.calcActiveBVs())
+
+		# Write QUBO file to disk
+		print("Writing QUBO output to disk ...", end="")
+		sys.stdout.flush()
+		bvc.writeQUBO(self.output, self.input)
+		print(" done")
+		print("Output saved to: " + self.output)
+		sys.stdout.flush()
 
 class Simulator:
 	"""This class is still work in progress.  The idea is to be able to simulate the D-Wave machine for a very small number
@@ -149,66 +211,10 @@ def main():
 		print("-d must be > 1.0")
 		exit(1)
 
-	print("Loading input into memory...", end="")
-	handle = open(args.input, "rU")
-	records = list(SeqIO.parse(handle, "fasta"))
-	handle.close()
-	print(" done")
-	print()
-	print("Input:")
-
-	# Collect variables
-	bvc = BVC(P=args.P, d=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
-	for r in records:
-		bvc.add_record(r)
-
-		# Input will only be small so just output every sequence found
-		print(">" + r.id)
-		print(r.seq)
-
-	print()
-
-	# Print current state of variables
-	print(bvc)
-
-	# Save settings file
-	print()
-	bvc.save_settings(args.output + ".settings")
-	print("Saved settings to " + args.output + ".settings")
-
-	# Create matrix
-	print()
-	print("Creating W matrix ...", end="")
-	sys.stdout.flush()
-	bvc.createW()
-	# print (m)
-	print(" done")
-	print("Creating matrix of coefficients of binary variables ...", end="")
-	sys.stdout.flush()
-	bvc.createBVMatrix()
-	# print (m)
-	print(" done")
-	print("Number of active binary variables: ", bvc.calcActiveBVs())
-
-	# Write QUBO file to disk
-	print("Writing QUBO output to disk ...", end="")
-	sys.stdout.flush()
-	bvc.writeQUBO(args.output, args.input)
-	print(" done")
-	print("Output saved to: " + args.output)
-	sys.stdout.flush()
-
-	# Find solution???
-	if args.simulate:
-		if bvc.get_NbBV() > 30:
-			print("Not trying to simulate data... way too many binary variables to finish in a reasonable time!",
-				  file=sys.stderr)
-		else:
-			sim = Simulator(bvc)
-			val, bv = sim.calcSolution()
-
-			print("Min value is: ", val)
-			print("Binary variables are:\n", bv)
+	m2q = Msa2Qubo(input=args.input, output=args.output, P=args.P, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting, verbose=args.verbose)
+	m2q.run()
 
 
-main()
+if __name__ == "__main__":
+   # stuff only to run when not called via 'import' here
+   main()

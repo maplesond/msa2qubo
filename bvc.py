@@ -109,29 +109,34 @@ class BVC:
 
 	def load_bvs(self, filename):
 		with open(filename) as f:
-			for line in f:
-				self.__bvs.append(int(line.strip()))
+			f.readline()
+			s = f.readline().strip()
+			for c in s.strip():
+				self.__bvs.append(int(c))
 
 	def make_msa(self):
 		msa = []
 		for k in range(self.__N):
 			klen = len(self.__x[k])
 			b_k = k * klen * self.m()
-			#g_k = self.get_gVarOffset() + k * klen * self.p()
+			g_k = self.get_gVarOffset() + k * klen * self.p()
 			sa = []
 			for j in range(klen):
 				b_kj = b_k + (j * self.m())
-				#g_kj = g_k + (j * self.p())
+				g_kj = g_k + (j * self.p())
 				pos = 0
 				n = 0
 				# Assuming little endian ??? don't know if this is right
 				for b_a in range(self.m()):
 					pos += pow(2, n) if self.__bvs[b_kj + b_a] == 1 else 0
-					print(pos)
+					#print(pos)
 					n += 1
 				sa.append(pos)
-				#for g_a in range(self.p()):
-				#		g_kj1a = g_kj1 + g_a
+				n = 0
+				for g_a in range(self.p()):
+					pos += pow(2, n) if self.__bvs[g_kj + g_a] == 1 else 0
+					print(pos)
+					n += 1
 			msa.append(sa)
 		return msa
 
