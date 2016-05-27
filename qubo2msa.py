@@ -34,9 +34,10 @@ class Qubo2Msa:
 		print(" done")
 		print()
 
-		print("Settings:")
-		print(bvc)
-		print()
+		if self.verbose:
+			print("Settings:")
+			print(bvc)
+			print()
 
 		msa = bvc.make_msa()
 		print("Made MSA")
@@ -45,6 +46,12 @@ class Qubo2Msa:
 		print("Position matrix:")
 		for sa in msa:
 			print(sa)
+
+		gm = bvc.make_gap_matrix()
+		print()
+		print("Gap matrix:")
+		for g in gm:
+			print(g)
 
 		# Shouldn't need this when run on the real thing but for now on random data M is not necesarily sufficient to
 		# hold the potential position values

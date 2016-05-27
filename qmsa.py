@@ -3,6 +3,7 @@
 import os
 import argparse
 import subprocess
+import time
 from msa2qubo import Msa2Qubo
 from qubo2msa import Qubo2Msa
 
@@ -22,24 +23,35 @@ def main():
 	print("---------------------------------")
 	print()
 
-	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=0.8, l1=0.1, l2=10.0)
+	start1 = time.time()
+	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=5.0, l1=1.0, l2=10.0)
 	m2q.run()
+	end1 = time.time()
+	print("Time taken to create QUBO file (s): ", "{0:.2f}".format(round(end1 - start1,2)))
 
+	print()
 	print()
 	print("Solving QUBO problem")
 	print("--------------------")
 	print()
 
 	# Assume qbsolv in on the PATH
+	start2 = time.time()
 	subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution"])
+	end2 = time.time()
+	print("Time taken to solve QUBO problem (s): ", "{0:.2f}".format(round(end2 - start2,2)))
 
+	print()
 	print()
 	print("Interpretting from solution")
 	print("---------------------------")
 	print()
 
+	start3 = time.time()
 	m2q = Qubo2Msa(settings=args.output_dir + "/qmsa.qubo.settings", solution=args.output_dir + "/qmsa.solution", input=args.input, output=args.output_dir + "/qmsa.msa", verbose=args.verbose)
 	m2q.run()
+	end3 = time.time()
+	print("Time taken to interpret solution (s): ", "{0:.2f}".format(round(end3 - start3,2)))
 
 
 

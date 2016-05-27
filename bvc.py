@@ -66,7 +66,7 @@ class BVC:
 
 	def __str__(self):
 		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
-				"Lmax=" + str(self.__Lmax) + "\tLength of longest sequence\n" \
+				"Lmax=" + str(self.__Lmax) + "\tLength of longest sequence (rounded up to nearest ^2)\n" \
 				"K=" + str(self.__K) + "\tTotal number of characters\n" \
 				"M=" + str(self.M()) + "\tLength of each row in solution space\n" \
 				"m=" + str(self.m()) + "\tNumber of binary variables required to represent each position in solution space\n" \
@@ -87,6 +87,9 @@ class BVC:
 		"""Adds a biopython record and updates the state of this object accordingly"""
 		l = len(record.seq)
 		self.__Lmax = max(self.__Lmax, l)
+		# ensure Lmax is power of 2
+		self.__Lmax = 1<<(self.__Lmax - 1).bit_length()
+
 		self.__x.append([0] * l)  # Add a list the size of the this sequence to the 'x' list
 		self.__K += l
 		self.__N += 1
@@ -116,29 +119,35 @@ class BVC:
 
 	def make_msa(self):
 		msa = []
+		b_k = 0
 		for k in range(self.__N):
 			klen = len(self.__x[k])
-			b_k = k * klen * self.m()
-			g_k = self.get_gVarOffset() + k * klen * self.p()
 			sa = []
 			for j in range(klen):
 				b_kj = b_k + (j * self.m())
+				pos = 0
+				for b_a in range(self.m()):
+					pos += 2 ** b_a if self.__bvs[b_kj + b_a] == 1 else 0
+				sa.append(pos)
+			msa.append(sa)
+			b_k += klen * self.m()
+		return msa
+
+	def make_gap_matrix(self):
+		gm = []
+		g_k = self.get_gVarOffset()
+		for k in range(self.__N):
+			klen = len(self.__x[k])
+			gr = []
+			for j in range(klen):
 				g_kj = g_k + (j * self.p())
 				pos = 0
-				n = 0
-				# Assuming little endian ??? don't know if this is right
-				for b_a in range(self.m()):
-					pos += pow(2, n) if self.__bvs[b_kj + b_a] == 1 else 0
-					#print(pos)
-					n += 1
-				sa.append(pos)
-				n = 0
 				for g_a in range(self.p()):
-					pos += pow(2, n) if self.__bvs[g_kj + g_a] == 1 else 0
-					print(pos)
-					n += 1
-			msa.append(sa)
-		return msa
+					pos += 2 ** g_a if self.__bvs[g_kj + g_a] == 1 else 0
+				gr.append(pos)
+			gm.append(gr)
+			g_k += klen * self.p()
+		return gm
 
 
 	def N(self):
@@ -155,7 +164,8 @@ class BVC:
 
 	def M(self):
 		"""Returns the length of each row in solution space"""
-		return 2 * self.__Lmax + 1
+		min_m = 2 * self.__Lmax + 1
+		return 1<<(min_m - 1).bit_length()
 
 	def Lmax(self):
 		return self.__Lmax
@@ -186,7 +196,7 @@ class BVC:
 
 	def calc_minBV(self):
 		"""Calculate lower bound on number of binary variables required"""
-		return self.__K * (self.m() + self.p())
+		return self.K() * (self.m() + self.p())
 
 	def calc_maxBV(self):
 		"""Calculate upper bound on number of binary variables required"""
@@ -198,7 +208,7 @@ class BVC:
 
 	def get_gVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
-		return self.__K * self.m()
+		return self.get_NbPositioningVars()
 
 	def get_rVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
@@ -213,10 +223,10 @@ class BVC:
 		return self.get_yVarOffset() + self.get_NbYVars()
 
 	def get_NbPositioningVars(self):
-		return self.__K * self.m()
+		return self.K() * self.m()
 
 	def get_NbGapVars(self):
-		return self.__K * self.p()
+		return self.K() * self.p()
 
 	def get_NbRewardVars(self):
 		count = 0
@@ -237,10 +247,10 @@ class BVC:
 
 	def __addE0Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E0"""
+		b_k = 0
+		g_k = self.get_gVarOffset()
 		for k in range(self.__N):
 			klen = len(self.__x[k])
-			b_k = k * klen * self.m()
-			g_k = self.get_gVarOffset() + k * klen * self.p()
 			for j in range(klen - 1):
 				b_kj = b_k + (j * self.m())
 				b_kj1 = b_k + ((j + 1) * self.m())
@@ -248,46 +258,43 @@ class BVC:
 				for b_a in range(self.m()):
 					b_kja = b_kj + b_a
 					b_kj1a = b_kj1 + b_a
+					v_b_a = (2 ** (b_a + 1)) * self.__l0
+					v_b_a_p2 = v_b_a ** 2
 					for g_a in range(self.p()):
 						g_kj1a = g_kj1 + g_a
-						self.__bvm[b_kj1a, b_kj1a] += self.__l0 ** 2
-						self.__bvm[b_kj1a, b_kja] -= self.__l0
-						self.__bvm[b_kj1a, b_kj1a] -= self.__l0
-						self.__bvm[b_kj1a, g_kj1a] -= self.__l0
-						self.__bvm[b_kja, b_kj1a] -= self.__l0
-						self.__bvm[b_kja, b_kja] += self.__l0 ** 2
-						self.__bvm[b_kja, b_kja] -= self.__l0
-						self.__bvm[b_kja, g_kj1a] += self.__l0
-						self.__bvm[b_kj1a, b_kj1a] -= self.__l0
-						self.__bvm[b_kja, b_kja] -= self.__l0
-						# +1 here??? What do wath a constant?
-						self.__bvm[g_kj1a, g_kj1a] += self.__l0
-						self.__bvm[g_kj1a, b_kj1a] -= self.__l0
-						self.__bvm[g_kj1a, b_kja] += self.__l0
-						self.__bvm[g_kj1a, g_kj1a] += self.__l0
-						self.__bvm[g_kj1a, g_kj1a] += self.__l0 ** 2
+						v_g_a = (2 ** (g_a + 1)) * self.__l0
+						self.__bvm[b_kja, b_kja] += v_b_a_p2 + 2 * v_b_a
+						self.__bvm[b_kj1a, b_kj1a] += v_b_a_p2 - 2 * v_b_a
+						self.__bvm[g_kj1a, g_kj1a] += v_b_a_p2 + v_g_a
+						self.__bvm[b_kja, b_kj1a] -= 2 * v_b_a
+						self.__bvm[b_kja, g_kj1a] += 2 * v_b_a * v_g_a
+						self.__bvm[b_kj1a, g_kj1a] -= 2 * v_b_a * v_g_a
+						# +1 left here??? What do with a constant?
 
 				# Coefficients for second term (gap prior to first character)
 				for b_a in range(self.m()):
+					v_b_a = (2 ** (b_a + 1)) * self.__l0
 					for g_a in range(self.p()):
 						b_ka = b_k + b_a
 						g_ka = g_k + g_a
-						self.__bvm[b_ka, b_ka] += self.__l0 ** 2
-						self.__bvm[g_ka, g_ka] += self.__l0 ** 2
-						self.__bvm[b_ka, g_ka] -= self.__l0
-						self.__bvm[g_ka, b_ka] -= self.__l0
+						v_g_a = (2 ** g_a) * self.__l0
+						self.__bvm[b_ka, b_ka] += v_b_a ** 2
+						self.__bvm[g_ka, g_ka] -= v_g_a ** 2
+			b_k += klen * self.m()
+			g_k += klen * self.p()
 
 	def __addE1Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E1"""
+		g_k = self.get_gVarOffset()
 		for k in range(self.__N):
 			klen = len(self.__x[k])
-			g_k = self.get_gVarOffset() + k * klen * self.p()
 			for j in range(1, klen):
 				g_kj = g_k + (j * self.p())
-				for a in range(0, self.p() - 1):
+				for a in range(self.p()):
 					g_kja = g_kj + a
-					print(g_kja)
-					self.__bvm[g_kja, g_kja] += ((2 ** a) * self.__l1) ** 2
+					self.__bvm[g_kja, g_kja] += (2 ** (a+1)) * self.__l1
+			g_k += klen * self.p()
+
 
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
@@ -387,7 +394,7 @@ class BVC:
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
-		self.__addE2Coefficients()
+		#self.__addE2Coefficients()
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):
@@ -399,7 +406,7 @@ class BVC:
 		o.write("c\n")
 
 		# Assume unconstrained target "0"
-		o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
+		o.write("p qubo 0 " + str(self.calc_minBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
 
 		# Output diagonals
 		o.write("c\n")
