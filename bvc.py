@@ -10,7 +10,8 @@ from Bio import SeqIO
 
 
 class BVC:
-	"""This class represents the binary variables required for a given number of sequences
+	"""This class represents the binary variables required for a given number of sequences.  Little endian is used where
+	binary variables are representing integer values.
 	To use the class initialise, and optionally override default parameters representing the max gap size and weightings,
 	then add BioPython sequence records that will represent the MSA.  Finally call createBVMatrix to create the symettric
 	matrix containing binary variable coefficients."""
@@ -122,13 +123,17 @@ class BVC:
 		b_k = 0
 		for k in range(self.__N):
 			klen = len(self.__x[k])
+			offset = 0
+			for b_a in range(self.m()):
+				offset += 2 ** b_a if self.__bvs[b_k + b_a] == 1 else 0
+			offset -= 1
 			sa = []
 			for j in range(klen):
 				b_kj = b_k + (j * self.m())
-				pos = 0
+				pos = j
 				for b_a in range(self.m()):
 					pos += 2 ** b_a if self.__bvs[b_kj + b_a] == 1 else 0
-				sa.append(pos)
+				sa.append(abs(pos - offset - 1))
 			msa.append(sa)
 			b_k += klen * self.m()
 		return msa
@@ -256,13 +261,17 @@ class BVC:
 				b_kj1 = b_k + ((j + 1) * self.m())
 				g_kj1 = g_k + ((j + 1) * self.p())
 				for b_a in range(self.m()):
+					b_ka = b_k + b_a
 					b_kja = b_kj + b_a
 					b_kj1a = b_kj1 + b_a
-					v_b_a = (2 ** (b_a + 1)) * self.__l0
+					v_b_a = (2 ** b_a) * self.__l0
 					v_b_a_p2 = v_b_a ** 2
+
 					for g_a in range(self.p()):
 						g_kj1a = g_kj1 + g_a
-						v_g_a = (2 ** (g_a + 1)) * self.__l0
+						b_ka = b_k + b_a
+						g_ka = g_k + g_a
+						v_g_a = (2 ** g_a) * self.__l0
 						self.__bvm[b_kja, b_kja] += v_b_a_p2 + 2 * v_b_a
 						self.__bvm[b_kj1a, b_kj1a] += v_b_a_p2 - 2 * v_b_a
 						self.__bvm[g_kj1a, g_kj1a] += v_b_a_p2 + v_g_a
@@ -270,16 +279,8 @@ class BVC:
 						self.__bvm[b_kja, g_kj1a] += 2 * v_b_a * v_g_a
 						self.__bvm[b_kj1a, g_kj1a] -= 2 * v_b_a * v_g_a
 						# +1 left here??? What do with a constant?
-
-				# Coefficients for second term (gap prior to first character)
-				for b_a in range(self.m()):
-					v_b_a = (2 ** (b_a + 1)) * self.__l0
-					for g_a in range(self.p()):
-						b_ka = b_k + b_a
-						g_ka = g_k + g_a
-						v_g_a = (2 ** g_a) * self.__l0
 						self.__bvm[b_ka, b_ka] += v_b_a ** 2
-						self.__bvm[g_ka, g_ka] -= v_g_a ** 2
+						self.__bvm[g_ka, g_ka] += v_g_a ** 2
 			b_k += klen * self.m()
 			g_k += klen * self.p()
 
@@ -292,7 +293,7 @@ class BVC:
 				g_kj = g_k + (j * self.p())
 				for a in range(self.p()):
 					g_kja = g_kj + a
-					self.__bvm[g_kja, g_kja] += (2 ** (a+1)) * self.__l1
+					self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
 			g_k += klen * self.p()
 
 

@@ -23,6 +23,27 @@ class Msa2Qubo:
 
 
 	def run(self):
+
+		if self.l0 < self.l1:
+			print("-l0 must be larger than -l1")
+			exit(1)
+
+		if self.l1 <= 0.0:
+			print("-l1 must be larger than 0.0")
+			print(1)
+
+		if self.l2 <= 1.0:
+			print("-l2 must be > 1.0")
+			exit(1)
+
+		if self.delta <= 1.0:
+			print("-d must be > 1.0")
+			exit(1)
+
+		if self.P < 1:
+			print("-P must be >= 1")
+			exit(1)
+
 		print("Loading input into memory...", end="")
 		handle = open(self.input, "rU")
 		records = list(SeqIO.parse(handle, "fasta"))
@@ -209,6 +230,10 @@ def main():
 
 	if args.delta <= 1.0:
 		print("-d must be > 1.0")
+		exit(1)
+
+	if args.P < 1:
+		print("-P must be >= 1")
 		exit(1)
 
 	m2q = Msa2Qubo(input=args.input, output=args.output, P=args.P, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting, verbose=args.verbose)
