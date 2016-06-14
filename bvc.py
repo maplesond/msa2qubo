@@ -155,6 +155,7 @@ class BVC:
 		return gm
 
 
+
 	def N(self):
 		return self.__N
 
@@ -296,21 +297,22 @@ class BVC:
 					self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
 			g_k += klen * self.p()
 
-
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
 		for k in range(self.__N - 1):
 			klen = len(self.__x[k])
-			r_k = self.get_rVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2)
-			y_k = self.get_yVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2 * self.m())
-			z_k = self.get_zVarOffset() + (k * (self.__N - 1) * self.__Lmax ** 2 * self.m())
+			k_offset = k * (self.__N - 1) * self.__Lmax ** 2
+			r_k = self.get_rVarOffset() + k_offset
+			y_k = self.get_yVarOffset() + (k_offset * self.m())
+			z_k = self.get_zVarOffset() + (k_offset * self.m())
 			for q in range(k + 1, self.__N):
 				qlen = len(self.__x[q])
 				b_k = k * klen * self.m()
 				b_q = q * qlen * self.m()
-				r_kq = r_k + ((q - k - 1) * self.__Lmax ** 2)
-				y_kq = y_k + ((q - k - 1) * self.__Lmax ** 2 * self.m())
-				z_kq = z_k + ((q - k - 1) * self.__Lmax ** 2 * self.m())
+				e = (q - k - 1) * self.__Lmax ** 2
+				r_kq = r_k + e
+				y_kq = y_k + (e * self.m())
+				z_kq = z_k + (e * self.m())
 				for i in range(klen):
 					r_ikq = r_kq + (i * self.__Lmax)
 					y_ikq = y_kq + (i * self.__Lmax * self.m())
@@ -395,7 +397,7 @@ class BVC:
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
-		#self.__addE2Coefficients()
+		self.__addE2Coefficients()
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):
@@ -407,7 +409,7 @@ class BVC:
 		o.write("c\n")
 
 		# Assume unconstrained target "0"
-		o.write("p qubo 0 " + str(self.calc_minBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
+		o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
 
 		# Output diagonals
 		o.write("c\n")

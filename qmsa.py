@@ -13,6 +13,12 @@ def main():
 	parser.add_argument("-o", "--output_dir", required=True,
 						help="The output directory")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
+	parser.add_argument("-l0", "--position_weighting", type=float, default=0.8,
+						help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
+	parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1,
+						help="The weighting to apply to gap penalties")
+	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
+						help="The weighting to apply to reward matches (must be greater than 1.0)")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
@@ -24,7 +30,7 @@ def main():
 	print()
 
 	start1 = time.time()
-	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=5.0, l1=1.0, l2=10.0)
+	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
 	m2q.run()
 	end1 = time.time()
 	print("Time taken to create QUBO file (s): ", "{0:.2f}".format(round(end1 - start1,2)))
