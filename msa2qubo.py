@@ -21,6 +21,8 @@ class Msa2Qubo:
 		self.l2 = l2
 		self.verbose = verbose
 
+		self.energy = 0.0
+
 
 	def run(self):
 
@@ -84,6 +86,9 @@ class Msa2Qubo:
 		# print (m)
 		print(" done")
 		print("Number of active binary variables: ", bvc.calcActiveBVs())
+
+		self.energy = -bvc.energy
+		print("Target energy: ", self.energy)
 
 		# Write QUBO file to disk
 		print("Writing QUBO output to disk ...", end="")

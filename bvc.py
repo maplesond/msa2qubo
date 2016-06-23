@@ -64,6 +64,7 @@ class BVC:
 		self.__bvm = numpy.zeros((0, 0))
 
 		self.__bvs = []
+		self.energy = 0
 
 	def __str__(self):
 		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
@@ -123,17 +124,13 @@ class BVC:
 		b_k = 0
 		for k in range(self.__N):
 			klen = len(self.__x[k])
-			offset = 0
-			for b_a in range(self.m()):
-				offset += 2 ** b_a if self.__bvs[b_k + b_a] == 1 else 0
-			offset -= 1
 			sa = []
 			for j in range(klen):
 				b_kj = b_k + (j * self.m())
 				pos = j
 				for b_a in range(self.m()):
 					pos += 2 ** b_a if self.__bvs[b_kj + b_a] == 1 else 0
-				sa.append(abs(pos - offset - 1))
+				sa.append(abs(pos))
 			msa.append(sa)
 			b_k += klen * self.m()
 		return msa
@@ -279,7 +276,7 @@ class BVC:
 						self.__bvm[b_kja, b_kj1a] -= 2 * v_b_a
 						self.__bvm[b_kja, g_kj1a] += 2 * v_b_a * v_g_a
 						self.__bvm[b_kj1a, g_kj1a] -= 2 * v_b_a * v_g_a
-						# +1 left here??? What do with a constant?
+						self.energy += 1.0
 						self.__bvm[b_ka, b_ka] += v_b_a ** 2
 						self.__bvm[g_ka, g_ka] += v_g_a ** 2
 			b_k += klen * self.m()
@@ -294,7 +291,7 @@ class BVC:
 				g_kj = g_k + (j * self.p())
 				for a in range(self.p()):
 					g_kja = g_kj + a
-					self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
+					self.__bvm[g_kja, g_kja] -= (2 ** a) * self.__l1
 			g_k += klen * self.p()
 
 	def __addE2Coefficients(self):
@@ -397,7 +394,7 @@ class BVC:
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
-		self.__addE2Coefficients()
+		#self.__addE2Coefficients()
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):

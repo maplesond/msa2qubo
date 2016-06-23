@@ -43,7 +43,9 @@ def main():
 
 	# Assume qbsolv in on the PATH
 	start2 = time.time()
-	subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution"])
+	#subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(m2q.energy), "-o", args.output_dir + "/qmsa.solution", "-v2"])
+	subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution", "-v2"])
+	#subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(-2), "-o", args.output_dir + "/qmsa.solution"])
 	end2 = time.time()
 	print("Time taken to solve QUBO problem (s): ", "{0:.2f}".format(round(end2 - start2,2)))
 
