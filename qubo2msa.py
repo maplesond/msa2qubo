@@ -11,12 +11,13 @@ from bvc import BVC
 
 class Qubo2Msa:
 
-	def __init__(self, settings, solution, input, output, verbose):
+	def __init__(self, settings, solution, input, output, active, verbose):
 		self.data = []
 		self.settings = settings
 		self.solution = solution
 		self.input = input
 		self.output = output
+		self.active = active
 		self.verbose = verbose
 
 	def run(self):
@@ -24,8 +25,9 @@ class Qubo2Msa:
 		bvc = BVC(settings_file=self.settings)
 		print("Loaded QUBO settings")
 		print()
-		bvc.load_bvs(self.solution)
-		print("Loaded binary variables")
+		bvc.load_bvs(self.solution, self.active)
+		print("Loaded", len(self.active), "binary variables")
+		print()
 
 		print("Loading input into memory...", end="")
 		handle = open(self.input, "rU")

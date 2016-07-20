@@ -22,6 +22,7 @@ class Msa2Qubo:
 		self.verbose = verbose
 
 		self.energy = 0.0
+		self.active = []
 
 
 	def run(self):
@@ -86,6 +87,7 @@ class Msa2Qubo:
 		# print (m)
 		print(" done")
 		print("Number of active binary variables: ", bvc.calcActiveBVs())
+		self.active = bvc.active
 
 		self.energy = -bvc.energy
 		print("Target energy: ", self.energy)

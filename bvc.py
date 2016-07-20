@@ -65,6 +65,7 @@ class BVC:
 
 		self.__bvs = []
 		self.energy = 0
+		self.active = []
 
 	def __str__(self):
 		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
@@ -112,12 +113,18 @@ class BVC:
 
 		handle.close()
 
-	def load_bvs(self, filename):
+	def load_bvs(self, filename, active):
+
 		with open(filename) as f:
 			f.readline()
 			s = f.readline().strip()
+			index = 0
 			for c in s.strip():
+				while index < len(active) and active[index] == False:
+					index += 1
+					self.__bvs.append(0)
 				self.__bvs.append(int(c))
+				index += 1
 
 	def make_msa(self):
 		msa = []
@@ -368,9 +375,11 @@ class BVC:
 	def calcActiveBVs(self):
 		count = 0
 		for i in range(self.get_NbBV()):
+			self.active = [False] * self.get_NbBV()
 			for j in range(i, self.get_NbBV()):
 				if self.__bvm[i, j] != 0.0:
 					count += 1
+					self.active[i] = True
 					break
 		return count
 
@@ -401,28 +410,23 @@ class BVC:
 		"""Outputs QUBO format representation"""
 		o = open(outfilepath, 'w')
 
-		o.write("c\n")
-		o.write("c QUBO format representation of " + infilepath + "\n")
-		o.write("c\n")
-
-		# Assume unconstrained target "0"
-		o.write("p qubo 0 " + str(self.get_NbBV()) + " " + str(self.__calcNbDiagonals()) + " " + str(self.__calcNbElements()) + "\n")
-
-		# Output diagonals
-		o.write("c\n")
-		o.write("c diagonals\n")
+		print("c ---------\nc", file=o)
+		print("c QUBO format representation of ", infilepath, file=o)
+		#print("c\np qubo 0 ", self.get_NbBV(), self.__calcNbDiagonals(), self.__calcNbElements(), file=o)
+		print("c\np qubo 0 ", self.__calcNbDiagonals(), self.__calcNbDiagonals(), self.__calcNbElements(), file=o)
+		print("c\nc nodes\nc", file=o)
 		for i in range(self.get_NbBV()):
 			v = self.__bvm[i, i]
 			if v != 0:
-				o.write(str(i) + " " + str(i) + " " + str(v) + "\n")
+				print(i, i, v, file=o)
 
 		# Output elements
-		o.write("c\n")
-		o.write("c elements\n")
+		print("c\nc couplers\nc", file=o)
 		for i in range(self.get_NbBV() - 1):
 			for j in range(i + 1, self.get_NbBV()):
 				v = self.__bvm[i, j]
 				if v != 0:
-					o.write(str(i) + " " + str(j) + " " + str(v) + "\n")
+					print(i, j, v, file=o)
 
 		o.close()
+
