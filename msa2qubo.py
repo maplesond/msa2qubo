@@ -72,7 +72,7 @@ class Msa2Qubo:
 		# Save settings file
 		print()
 		bvc.save_settings(self.output + ".settings")
-		print("Saved settings to " + self.output + ".settings")
+		print("Saved settings to: " + self.output + ".settings")
 
 		# Create matrix
 		print()
@@ -84,20 +84,21 @@ class Msa2Qubo:
 		print("Creating matrix of coefficients of binary variables ...", end="")
 		sys.stdout.flush()
 		bvc.createBVMatrix()
-		# print (m)
 		print(" done")
-		print("Number of active binary variables: ", bvc.calcActiveBVs())
+		print("Integer representation of coefficients ( Target energy", bvc.ienergy, "):")
+		print(bvc.im())
+		print("Number of active binary variables:", bvc.calcActiveBVs())
 		self.active = bvc.active
 
 		self.energy = -bvc.energy
-		print("Target energy: ", self.energy)
+		print("Target energy:", self.energy)
 
 		# Write QUBO file to disk
 		print("Writing QUBO output to disk ...", end="")
 		sys.stdout.flush()
 		bvc.writeQUBO(self.output, self.input)
 		print(" done")
-		print("Output saved to: " + self.output)
+		print("Output saved to:" + self.output)
 		sys.stdout.flush()
 
 class Simulator:

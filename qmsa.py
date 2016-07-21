@@ -13,7 +13,7 @@ def main():
 	parser.add_argument("-o", "--output_dir", required=True,
 						help="The output directory")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
-	parser.add_argument("-l0", "--position_weighting", type=float, default=0.8,
+	parser.add_argument("-l0", "--position_weighting", type=float, default=1.0,
 						help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
 	parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1,
 						help="The weighting to apply to gap penalties")
@@ -22,8 +22,11 @@ def main():
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
+	startall = time.time()
+
 	if not os.path.exists(args.output_dir):
 		os.makedirs(args.output_dir)
+
 
 	print("Converting problem into QUBO form")
 	print("---------------------------------")
@@ -43,9 +46,9 @@ def main():
 
 	# Assume qbsolv in on the PATH
 	start2 = time.time()
-	#subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(m2q.energy), "-o", args.output_dir + "/qmsa.solution", "-v2"])
-	subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution"])
-	#subprocess.call(['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(-2), "-o", args.output_dir + "/qmsa.solution"])
+	cmd_args = ['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution"]
+	print("Executing:", " ".join(cmd_args))
+	subprocess.call(cmd_args)
 	subprocess.call(['cat', args.output_dir + "/qmsa.solution"])
 	end2 = time.time()
 	print("Time taken to solve QUBO problem (s): ", "{0:.2f}".format(round(end2 - start2,2)))
@@ -62,6 +65,8 @@ def main():
 	end3 = time.time()
 	print("Time taken to interpret solution (s): ", "{0:.2f}".format(round(end3 - start3,2)))
 
-
+	endall = time.time()
+	print()
+	print("Total time taken: ", "{0:.2f}".format(round(endall - startall,2)))
 
 main()

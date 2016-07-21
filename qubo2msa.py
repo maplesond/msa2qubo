@@ -26,10 +26,10 @@ class Qubo2Msa:
 		print("Loaded QUBO settings")
 		print()
 		bvc.load_bvs(self.solution, self.active)
-		print("Loaded", len(self.active), "binary variables (", sum(self.active), "of which are active. )")
+		print("Loaded solution to QUBO problem with", len(self.active), "binary variables (", sum(self.active), "of which are active. )")
 		print()
 
-		print("Loading input into memory...", end="")
+		print("Loading input sequences into memory...", end="")
 		handle = open(self.input, "rU")
 		records = list(SeqIO.parse(handle, "fasta"))
 		handle.close()
@@ -44,10 +44,16 @@ class Qubo2Msa:
 		msa = bvc.make_msa()
 		print("Made MSA")
 
+		print("Position variables:")
+		print(bvc.getPosSolution())
 		print()
 		print("Position matrix:")
 		for sa in msa:
 			print(sa)
+
+		print()
+		print("Gap variables:")
+		print(bvc.getGapSolution())
 
 		gm = bvc.make_gap_matrix()
 		print()

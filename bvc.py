@@ -62,9 +62,11 @@ class BVC:
 		self.__W = numpy.zeros((0, 0))
 
 		self.__bvm = numpy.zeros((0, 0))
+		self.__im = numpy.zeros((0, 0))
 
 		self.__bvs = []
 		self.energy = 0
+		self.ienergy = 0
 		self.active = []
 		self.nb_active = 0
 
@@ -119,28 +121,29 @@ class BVC:
 		with open(filename) as f:
 			f.readline()
 			s = f.readline().strip()
-			index = 0
+			#index = 0
 			for c in s.strip():
-				while index < len(active) and active[index] == False:
-					index += 1
-					self.__bvs.append(0)
+				#while index < len(active) and active[index] == False:
+				#	index += 1
+				#	self.__bvs.append(0)
 				self.__bvs.append(int(c))
-				index += 1
+				#index += 1
 
 	def make_msa(self):
 		msa = []
 		b_k = 0
 		for k in range(self.__N):
-			klen = len(self.__x[k])
+			L_k = len(self.__x[k])
 			sa = []
-			for j in range(klen):
+			for j in range(L_k):
 				b_kj = b_k + (j * self.m())
-				pos = j
-				for b_a in range(self.m()):
-					pos += 2 ** b_a if self.__bvs[b_kj + b_a] == 1 else 0
+				#pos = j # Ensures minimal offset to ensure characters don't stack up on each other (handles the -1 in E0).
+				pos = 0
+				for a in range(self.m()):
+					pos += 2 ** a if self.__bvs[b_kj + a] == 1 else 0
 				sa.append(abs(pos))
 			msa.append(sa)
-			b_k += klen * self.m()
+			b_k += L_k * self.m()
 		return msa
 
 	def make_gap_matrix(self):
@@ -201,6 +204,15 @@ class BVC:
 	def l2(self):
 		return self.__l2
 
+	def im(self):
+		return self.__im
+
+	def getPosSolution(self):
+		return self.__bvs[0:self.get_NbPositioningVars()]
+
+	def getGapSolution(self):
+		return self.__bvs[self.get_gVarOffset():self.get_gVarOffset()+self.get_NbGapVars()]
+
 	def calc_solutionSpaceSize(self):
 		"""Size of the solution space"""
 		return self.__N * self.M()
@@ -217,9 +229,9 @@ class BVC:
 		"""Return the actual number of binary variables required for this problem"""
 		return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
 
-	def get_gVarOffset(self):
+	def get_gVarOffset(self, intmode=False):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
-		return self.get_NbPositioningVars()
+		return self.get_NbPositioningVars(intmode)
 
 	def get_rVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
@@ -233,8 +245,8 @@ class BVC:
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
 		return self.get_yVarOffset() + self.get_NbYVars()
 
-	def get_NbPositioningVars(self):
-		return self.K() * self.m()
+	def get_NbPositioningVars(self, intmode=False):
+		return self.K() * self.m() if not intmode else self.K()
 
 	def get_NbGapVars(self):
 		return self.K() * self.p()
@@ -256,51 +268,100 @@ class BVC:
 	def get_NbZVars(self):
 		return self.get_NbRewardVars() * self.m()
 
-	def __addE0Coefficients(self):
+	def __addE0Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E0"""
-		b_k = 0
-		g_k = self.get_gVarOffset()
-		for k in range(self.__N):
-			L_k = len(self.__x[k])
-			for j in range(L_k - 1):
-				b_kj = b_k + (j * self.m())
-				b_kj1 = b_k + ((j + 1) * self.m())
-				g_kj1 = g_k + ((j + 1) * self.p())
-				for b_a in range(self.m()):
-					b_ka = b_k + b_a
-					b_kja = b_kj + b_a
-					b_kj1a = b_kj1 + b_a
-					v_b_a = (2 ** b_a) * self.__l0
-					v_b_a_p2 = v_b_a ** 2
 
-					for g_a in range(self.p()):
-						g_kj1a = g_kj1 + g_a
-						b_ka = b_k + b_a
-						g_ka = g_k + g_a
-						v_g_a = (2 ** g_a) * self.__l0
-						self.__bvm[b_kja, b_kja] += v_b_a_p2 + 2 * v_b_a
-						self.__bvm[b_kj1a, b_kj1a] += v_b_a_p2 - 2 * v_b_a
-						self.__bvm[g_kj1a, g_kj1a] += v_b_a_p2 + v_g_a
-						self.__bvm[b_kja, b_kj1a] -= 2 * v_b_a
-						self.__bvm[b_kja, g_kj1a] += 2 * v_b_a * v_g_a
-						self.__bvm[b_kj1a, g_kj1a] -= 2 * v_b_a * v_g_a
-						self.energy += 1.0
-						self.__bvm[b_ka, b_ka] += v_b_a ** 2
-						self.__bvm[g_ka, g_ka] += v_g_a ** 2
-			b_k += L_k * self.m()
-			g_k += L_k * self.p()
+		if intmode:
+			x_k = 0
+			G_k = self.get_gVarOffset(True)
+			for k in range(self.__N):
+				L_k = len(self.__x[k])
+				for j in range(L_k - 1):
+					x_kj = x_k + j
+					x_kj1 = x_kj + 1
+					G_kj1 = G_k + j + 1
+					self.__im[x_kj, x_kj] += self.__l0 ** 2 + 2 * self.__l0
+					self.__im[x_kj1, x_kj1] += self.__l0 ** 2 - 2 * self.__l0
+					self.__im[G_kj1, G_kj1] += self.__l0 ** 2 + self.__l0
+					self.__im[x_kj, x_kj1] -= 2 * self.__l0 * self.__l0
+					self.__im[x_kj, G_kj1] += 2 * self.__l0 * self.__l0
+					self.__im[x_kj1, G_kj1] -= 2 * self.__l0 * self.__l0
+					self.ienergy += 1.0 * self.__l0
+					self.__im[x_k, x_k] += self.__l0 ** 2
+					self.__im[G_k, G_k] += self.__l0 ** 2
+					#self.__bvm[b_ka, g_ka] -= 2 * v_b_a * v_g_a
+				x_k += L_k
+				G_k += L_k
+		else:
+			x_k = 0
+			G_k = self.get_gVarOffset()
+			for k in range(self.__N):
+				L_k = len(self.__x[k])
+				for j in range(L_k - 1):
+					x_kj = x_k + (j * self.m())
+					x_kj1 = x_k + ((j + 1) * self.m())
+					G_kj1 = G_k + ((j + 1) * self.p())
+					self.energy += 1.0 * self.__l0
 
-	def __addE1Coefficients(self):
+					# x node
+					for x_a in range(self.m()):
+						x_k1a = x_k + x_a
+						x_kja = x_kj + x_a
+						x_kj1a = x_kj1 + x_a
+						x_scale = 2 ** x_a
+						self.__bvm[x_kja, x_kja] += (x_scale ** 2 + 2 * x_scale) * self.__l0
+						self.__bvm[x_kj1a, x_kj1a] += (x_scale ** 2 - 2 * x_scale) * self.__l0
+						self.__bvm[x_k1a, x_k1a] += (x_scale ** 2) * self.__l0
+
+					# g node
+					for G_a in range(self.p()):
+						g_k1a = G_k + G_a
+						g_kj1a = G_kj1 + G_a
+						g_scale = 2 ** G_a
+						self.__bvm[g_kj1a, g_kj1a] += (g_scale ** 2 + 2 * g_scale) * self.__l0
+						self.__bvm[g_k1a, g_k1a] += g_scale * self.__l0
+
+					# xx - coupled
+					for x_a1 in range(self.m()):
+						x_scale1 = 2 ** x_a1
+						for x_a2 in range(self.m()):
+							x_scale2 = 2 ** x_a2
+							self.__bvm[x_kj + x_a1, x_kj + x_a2] -=  2 * x_scale1 * x_scale2 * self.__l0
+
+					# xy - coupled
+					for x_a in range(self.m()):
+						x_scale = self.__l0 * 2 ** x_a
+						for G_a in range(self.p()):
+							g_scale = 2 ** G_a
+							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2 * x_scale * g_scale * self.__l0
+							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * x_scale * g_scale * self.__l0
+							self.__bvm[x_k + x_a, G_k + G_a] -= 2 * x_scale * g_scale * self.__l0
+
+				x_k += L_k * self.m()
+				G_k += L_k * self.p()
+
+
+	def __addE1Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E1"""
-		g_k = self.get_gVarOffset()
-		for k in range(self.__N):
-			L_k = len(self.__x[k])
-			for j in range(1, L_k):
-				g_kj = g_k + (j * self.p())
-				for a in range(self.p()):
-					g_kja = g_kj + a
-					self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
-			g_k += L_k * self.p()
+
+		if intmode:
+			g_k = self.get_gVarOffset(True)
+			for k in range(self.__N):
+				L_k = len(self.__x[k])
+				for j in range(1, L_k):
+					g_kj = g_k + j
+					self.__im[g_kj, g_kj] += self.__l1
+				g_k += L_k
+		else:
+			g_k = self.get_gVarOffset()
+			for k in range(self.__N):
+				L_k = len(self.__x[k])
+				for j in range(1, L_k):
+					g_kj = g_k + (j * self.p())
+					for a in range(self.p()):
+						g_kja = g_kj + a
+						self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
+				g_k += L_k * self.p()
 
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
@@ -399,11 +460,17 @@ class BVC:
 
 	def createBVMatrix(self):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
-		size = self.get_NbBV() * 2
+		size = self.get_NbBV()
 		self.__bvm = numpy.zeros((size, size))
 		self.__addE0Coefficients()
 		self.__addE1Coefficients()
 		#self.__addE2Coefficients()
+		if True:
+			isize = self.K() * 2
+			self.__im = numpy.zeros((isize, isize))
+			self.__addE0Coefficients(intmode=True)
+			self.__addE1Coefficients(intmode=True)
+
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):
@@ -412,7 +479,7 @@ class BVC:
 
 		print("c ---------\nc", file=o)
 		print("c QUBO format representation of ", infilepath, file=o)
-		print("c\np qubo 0 ", self.nb_active, self.__calcNbNodes(), self.__calcNbCouplers(), file=o)
+		print("c\np qubo 0 ", self.get_NbBV(), self.__calcNbNodes(), self.__calcNbCouplers(), file=o)
 		print("c\nc nodes\nc", file=o)
 		for i in range(self.get_NbBV()):
 			v = self.__bvm[i, i]
