@@ -26,7 +26,7 @@ class Qubo2Msa:
 		print("Loaded QUBO settings")
 		print()
 		bvc.load_bvs(self.solution, self.active)
-		print("Loaded", len(self.active), "binary variables")
+		print("Loaded", len(self.active), "binary variables (", sum(self.active), "of which are active. )")
 		print()
 
 		print("Loading input into memory...", end="")

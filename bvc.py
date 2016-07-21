@@ -66,6 +66,7 @@ class BVC:
 		self.__bvs = []
 		self.energy = 0
 		self.active = []
+		self.nb_active = 0
 
 	def __str__(self):
 		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
@@ -260,8 +261,8 @@ class BVC:
 		b_k = 0
 		g_k = self.get_gVarOffset()
 		for k in range(self.__N):
-			klen = len(self.__x[k])
-			for j in range(klen - 1):
+			L_k = len(self.__x[k])
+			for j in range(L_k - 1):
 				b_kj = b_k + (j * self.m())
 				b_kj1 = b_k + ((j + 1) * self.m())
 				g_kj1 = g_k + ((j + 1) * self.p())
@@ -286,38 +287,38 @@ class BVC:
 						self.energy += 1.0
 						self.__bvm[b_ka, b_ka] += v_b_a ** 2
 						self.__bvm[g_ka, g_ka] += v_g_a ** 2
-			b_k += klen * self.m()
-			g_k += klen * self.p()
+			b_k += L_k * self.m()
+			g_k += L_k * self.p()
 
 	def __addE1Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E1"""
 		g_k = self.get_gVarOffset()
 		for k in range(self.__N):
-			klen = len(self.__x[k])
-			for j in range(1, klen):
+			L_k = len(self.__x[k])
+			for j in range(1, L_k):
 				g_kj = g_k + (j * self.p())
 				for a in range(self.p()):
 					g_kja = g_kj + a
-					self.__bvm[g_kja, g_kja] -= (2 ** a) * self.__l1
-			g_k += klen * self.p()
+					self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
+			g_k += L_k * self.p()
 
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
 		for k in range(self.__N - 1):
-			klen = len(self.__x[k])
+			L_k = len(self.__x[k])
 			k_offset = k * (self.__N - 1) * self.__Lmax ** 2
 			r_k = self.get_rVarOffset() + k_offset
 			y_k = self.get_yVarOffset() + (k_offset * self.m())
 			z_k = self.get_zVarOffset() + (k_offset * self.m())
 			for q in range(k + 1, self.__N):
 				qlen = len(self.__x[q])
-				b_k = k * klen * self.m()
+				b_k = k * L_k * self.m()
 				b_q = q * qlen * self.m()
 				e = (q - k - 1) * self.__Lmax ** 2
 				r_kq = r_k + e
 				y_kq = y_k + (e * self.m())
 				z_kq = z_k + (e * self.m())
-				for i in range(klen):
+				for i in range(L_k):
 					r_ikq = r_kq + (i * self.__Lmax)
 					y_ikq = y_kq + (i * self.__Lmax * self.m())
 					z_ikq = z_kq + (i * self.__Lmax * self.m())
@@ -357,14 +358,14 @@ class BVC:
 							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
 
 
-	def __calcNbDiagonals(self):
+	def __calcNbNodes(self):
 		count = 0
 		for i in range(self.get_NbBV()):
 			if self.__bvm[i, i] != 0.0:
 				count += 1
 		return count
 
-	def __calcNbElements(self):
+	def __calcNbCouplers(self):
 		count = 0
 		for i in range(self.get_NbBV() - 1):
 			for j in range(i + 1, self.get_NbBV()):
@@ -373,15 +374,14 @@ class BVC:
 		return count
 
 	def calcActiveBVs(self):
-		count = 0
+		self.active = [False] * self.get_NbBV()
 		for i in range(self.get_NbBV()):
-			self.active = [False] * self.get_NbBV()
 			for j in range(i, self.get_NbBV()):
 				if self.__bvm[i, j] != 0.0:
-					count += 1
 					self.active[i] = True
 					break
-		return count
+		self.nb_active = sum(self.active)
+		return self.nb_active
 
 	def createW(self):
 
@@ -412,8 +412,7 @@ class BVC:
 
 		print("c ---------\nc", file=o)
 		print("c QUBO format representation of ", infilepath, file=o)
-		#print("c\np qubo 0 ", self.get_NbBV(), self.__calcNbDiagonals(), self.__calcNbElements(), file=o)
-		print("c\np qubo 0 ", self.__calcNbDiagonals(), self.__calcNbDiagonals(), self.__calcNbElements(), file=o)
+		print("c\np qubo 0 ", self.nb_active, self.__calcNbNodes(), self.__calcNbCouplers(), file=o)
 		print("c\nc nodes\nc", file=o)
 		for i in range(self.get_NbBV()):
 			v = self.__bvm[i, i]
