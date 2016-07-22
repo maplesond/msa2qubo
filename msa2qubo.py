@@ -86,7 +86,7 @@ class Msa2Qubo:
 		bvc.createBVMatrix()
 		print(" done")
 		print("Integer representation of coefficients ( Target energy", -bvc.ienergy, "):")
-		print("Note: this isn't very helpful as there is no way to represent whether the value is squared or not.  If squaring was required we simply include this as an extra copy, i.e. the same as +/- 1 to the coefficient")
+		print("Note: this isn't very helpful as there is no way to represent whether the value is squared or not.  If squaring was required we just ignore it.")
 		print(bvc.im())
 		print("Number of active binary variables:", bvc.calcActiveBVs())
 		self.active = bvc.active

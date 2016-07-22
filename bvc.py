@@ -270,7 +270,7 @@ class BVC:
 	def get_NbZVars(self):
 		return self.get_NbRewardVars() * self.m()
 
-	def __linkBVs(self):
+	def __initBVs(self):
 		# First time around just set the binary variable scalars with the user defined l0
 		for i in range(self.__K):
 			for j in range(i, self.__K):
@@ -279,37 +279,33 @@ class BVC:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(k, self.m()):
-							k_scale = 2 ** k
-							l_scale = 2 ** l
+							scale = max(2 ** k, 2 ** l)
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
-							self.__bvm[x, y] = k_scale * l_scale
+							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(k, self.p()):
-							k_scale = 2 ** k
-							l_scale = 2 ** l
+							scale = max(2 ** k, 2 ** l)
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
-							self.__bvm[x, y] = k_scale * l_scale
+							self.__bvm[x, y] = scale
 
 				else:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(self.m()):
-							k_scale = 2 ** k
-							l_scale = 2 ** l
+							scale = max(2 ** k, 2 ** l)
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
-							self.__bvm[x, y] = k_scale * l_scale
+							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(self.p()):
-							k_scale = 2 ** k
-							l_scale = 2 ** l
+							scale = max(2 ** k, 2 ** l)
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
-							self.__bvm[x, y] = k_scale * l_scale
+							self.__bvm[x, y] = scale
 
 
 		for i in range(self.__K):
@@ -317,11 +313,10 @@ class BVC:
 				# Pos v gap vars
 				for k in range(self.m()):
 					for l in range(self.p()):
-						k_scale = 2 ** k
-						l_scale = 2 ** l
+						scale = max(2 ** k, 2 ** l)
 						x = (i * self.m()) + k
 						y = (j * self.p()) + l + self.get_gVarOffset()
-						self.__bvm[x, y] = k_scale * l_scale
+						self.__bvm[x, y] = scale
 
 
 	def __addE0Coefficients(self, intmode=False):
@@ -338,9 +333,9 @@ class BVC:
 					G_kj1 = G_k + j + 1
 
 					# Nodes
-					self.__im[x_kj, x_kj] += self.__l0 * 3
-					self.__im[x_kj1, x_kj1] += self.__l0 * -1
-					self.__im[G_kj1, G_kj1] += self.__l0 * -1
+					self.__im[x_kj, x_kj] += self.__l0 * 2
+					self.__im[x_kj1, x_kj1] += self.__l0 * -2
+					self.__im[G_kj1, G_kj1] += self.__l0 * -2
 					self.__im[x_k, x_k] += self.__l0 * 1
 					self.__im[G_k, G_k] += self.__l0 * 1
 
@@ -365,7 +360,7 @@ class BVC:
 					x_kj = x_k + (j * self.m())
 					x_kj1 = x_k + ((j + 1) * self.m())
 					G_kj1 = G_k + ((j + 1) * self.p())
-					self.energy += 1.0 * self.__l0
+					self.energy += self.__l0
 
 					# x node
 					for x_a1 in range(self.m()):
@@ -376,8 +371,8 @@ class BVC:
 							x_kj1a2 = x_kj1 + x_a2
 							x_k1a1 = x_k + x_a1
 							x_k1a2 = x_k + x_a2
-							self.__bvm[x_kja1, x_kja2] *= 3
-							self.__bvm[x_kj1a1, x_kj1a2] *= -1
+							self.__bvm[x_kja1, x_kja2] *= 2
+							self.__bvm[x_kj1a1, x_kj1a2] *= -2
 							#self.__bvm[x_k1a1, x_k1a2] *= 1
 							self.__bvmt[x_kja1, x_kja2] = 1
 							self.__bvmt[x_kj1a1, x_kj1a2] = 1
@@ -390,7 +385,7 @@ class BVC:
 							g_kj1a2 = G_kj1 + G_a2
 							g_k1a1 = G_k + G_a1
 							g_k1a2 = G_k + G_a2
-							self.__bvm[g_kj1a1, g_kj1a2] *= 2
+							self.__bvm[g_kj1a1, g_kj1a2] *= -2
 							#self.__bvm[g_k1a1, g_k1a2] *= 1
 							self.__bvmt[g_kj1a1, g_kj1a2] = 1
 							self.__bvmt[g_k1a1, g_k1a2] = 1
@@ -413,12 +408,7 @@ class BVC:
 
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
-			print("\n", self.__bvm)
 
-			for i in range(self.get_NbBV()):
-				for j in range(self.get_NbBV()):
-					if self.__bvmt[i,j] == 0:
-						self.__bvm[i,j] = 0
 
 
 
@@ -444,7 +434,7 @@ class BVC:
 						for a2 in range(a1, self.p()):
 							g_kja1 = g_kj + a1
 							g_kja2 = g_kj + a2
-							self.__bvm[g_kja1, g_kja2] *= self.__l1
+							self.__bvm[g_kja1, g_kja2] += self.__l1
 				g_k += L_k * self.p()
 
 	def __addE2Coefficients(self):
@@ -502,6 +492,12 @@ class BVC:
 							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
 							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
 
+	def __cleanBVs(self):
+		for i in range(self.get_NbBV()):
+			for j in range(self.get_NbBV()):
+				if self.__bvmt[i,j] == 0:
+					self.__bvm[i,j] = 0
+
 
 	def __calcNbNodes(self):
 		count = 0
@@ -547,20 +543,22 @@ class BVC:
 		size = self.get_NbBV()
 		self.__bvm = numpy.zeros((size, size))
 		self.__bvmt = numpy.zeros((size, size))
-		self.__linkBVs()
+		self.__initBVs()
 		numpy.set_printoptions(threshold=numpy.inf, linewidth=numpy.inf)
 		print("\n\nBVM - linking binary variables\n", self.__bvm)
 
 		self.__addE0Coefficients()
 		print("\n\nBVM - After E0 applied\n", self.__bvm)
-		#self.__addE1Coefficients()
+		self.__addE1Coefficients()
 		print("\n\nBVM - After E1 applied\n", self.__bvm)
 		#self.__addE2Coefficients()
+		#self.__cleanBVs()
+		#print("\n\nBVM - After cleaning\n", self.__bvm)
 		if True:
 			isize = self.K() * 2
 			self.__im = numpy.zeros((isize, isize))
 			self.__addE0Coefficients(intmode=True)
-			#self.__addE1Coefficients(intmode=True)
+			self.__addE1Coefficients(intmode=True)
 
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
