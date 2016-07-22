@@ -12,7 +12,7 @@ def main():
 	parser.add_argument("input", help="The file containing sequences to align (to be converted into QUBO)")
 	parser.add_argument("-o", "--output_dir", required=True,
 						help="The output directory")
-	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA")
+	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA (will round up to nearest power of 2)")
 	parser.add_argument("-l0", "--position_weighting", type=float, default=1.0,
 						help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
 	parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1,
@@ -67,6 +67,7 @@ def main():
 
 	endall = time.time()
 	print()
+	print("=======================")
 	print("Total time taken: ", "{0:.2f}".format(round(endall - startall,2)))
 
 main()

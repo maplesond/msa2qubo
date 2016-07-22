@@ -62,6 +62,7 @@ class BVC:
 		self.__W = numpy.zeros((0, 0))
 
 		self.__bvm = numpy.zeros((0, 0))
+		self.__bvmt = numpy.zeros((0, 0))
 		self.__im = numpy.zeros((0, 0))
 
 		self.__bvs = []
@@ -227,7 +228,8 @@ class BVC:
 
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
-		return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
+		#return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
+		return self.get_NbPositioningVars() + self.get_NbGapVars()
 
 	def get_gVarOffset(self, intmode=False):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
@@ -268,6 +270,60 @@ class BVC:
 	def get_NbZVars(self):
 		return self.get_NbRewardVars() * self.m()
 
+	def __linkBVs(self):
+		# First time around just set the binary variable scalars with the user defined l0
+		for i in range(self.__K):
+			for j in range(i, self.__K):
+				# Don't go under the diagonal
+				if i == j:
+					# Pos v pos vars
+					for k in range(self.m()):
+						for l in range(k, self.m()):
+							k_scale = 2 ** k
+							l_scale = 2 ** l
+							x = (i * self.m()) + k
+							y = (j * self.m()) + l
+							self.__bvm[x, y] = k_scale * l_scale
+					# Gap v gap vars
+					for k in range(self.p()):
+						for l in range(k, self.p()):
+							k_scale = 2 ** k
+							l_scale = 2 ** l
+							x = (i * self.p()) + k + self.get_gVarOffset()
+							y = (j * self.p()) + l + self.get_gVarOffset()
+							self.__bvm[x, y] = k_scale * l_scale
+
+				else:
+					# Pos v pos vars
+					for k in range(self.m()):
+						for l in range(self.m()):
+							k_scale = 2 ** k
+							l_scale = 2 ** l
+							x = (i * self.m()) + k
+							y = (j * self.m()) + l
+							self.__bvm[x, y] = k_scale * l_scale
+					# Gap v gap vars
+					for k in range(self.p()):
+						for l in range(self.p()):
+							k_scale = 2 ** k
+							l_scale = 2 ** l
+							x = (i * self.p()) + k + self.get_gVarOffset()
+							y = (j * self.p()) + l + self.get_gVarOffset()
+							self.__bvm[x, y] = k_scale * l_scale
+
+
+		for i in range(self.__K):
+			for j in range(self.__K):
+				# Pos v gap vars
+				for k in range(self.m()):
+					for l in range(self.p()):
+						k_scale = 2 ** k
+						l_scale = 2 ** l
+						x = (i * self.m()) + k
+						y = (j * self.p()) + l + self.get_gVarOffset()
+						self.__bvm[x, y] = k_scale * l_scale
+
+
 	def __addE0Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E0"""
 
@@ -280,19 +336,27 @@ class BVC:
 					x_kj = x_k + j
 					x_kj1 = x_kj + 1
 					G_kj1 = G_k + j + 1
-					self.__im[x_kj, x_kj] += self.__l0 ** 2 + 2 * self.__l0
-					self.__im[x_kj1, x_kj1] += self.__l0 ** 2 - 2 * self.__l0
-					self.__im[G_kj1, G_kj1] += self.__l0 ** 2 + self.__l0
-					self.__im[x_kj, x_kj1] -= 2 * self.__l0 * self.__l0
-					self.__im[x_kj, G_kj1] += 2 * self.__l0 * self.__l0
-					self.__im[x_kj1, G_kj1] -= 2 * self.__l0 * self.__l0
-					self.ienergy += 1.0 * self.__l0
-					self.__im[x_k, x_k] += self.__l0 ** 2
-					self.__im[G_k, G_k] += self.__l0 ** 2
-					#self.__bvm[b_ka, g_ka] -= 2 * v_b_a * v_g_a
+
+					# Nodes
+					self.__im[x_kj, x_kj] += self.__l0 * 3
+					self.__im[x_kj1, x_kj1] += self.__l0 * -1
+					self.__im[G_kj1, G_kj1] += self.__l0 * -1
+					self.__im[x_k, x_k] += self.__l0 * 1
+					self.__im[G_k, G_k] += self.__l0 * 1
+
+					# Couplers
+					self.__im[x_kj, x_kj1] += self.__l0 * -2
+					self.__im[x_kj, G_kj1] += self.__l0 * 2
+					self.__im[x_kj1, G_kj1] += self.__l0 * -2
+					self.__im[x_k, G_k] += self.__l0 * -2
+
+					# Left over energy
+					self.ienergy += self.__l0
+
 				x_k += L_k
 				G_k += L_k
 		else:
+
 			x_k = 0
 			G_k = self.get_gVarOffset()
 			for k in range(self.__N):
@@ -304,41 +368,59 @@ class BVC:
 					self.energy += 1.0 * self.__l0
 
 					# x node
-					for x_a in range(self.m()):
-						x_k1a = x_k + x_a
-						x_kja = x_kj + x_a
-						x_kj1a = x_kj1 + x_a
-						x_scale = 2 ** x_a
-						self.__bvm[x_kja, x_kja] += (x_scale ** 2 + 2 * x_scale) * self.__l0
-						self.__bvm[x_kj1a, x_kj1a] += (x_scale ** 2 - 2 * x_scale) * self.__l0
-						self.__bvm[x_k1a, x_k1a] += (x_scale ** 2) * self.__l0
+					for x_a1 in range(self.m()):
+						for x_a2 in range(x_a1, self.m()):
+							x_kja1 = x_kj + x_a1
+							x_kj1a1 = x_kj1 + x_a1
+							x_kja2 = x_kj + x_a2
+							x_kj1a2 = x_kj1 + x_a2
+							x_k1a1 = x_k + x_a1
+							x_k1a2 = x_k + x_a2
+							self.__bvm[x_kja1, x_kja2] *= 3
+							self.__bvm[x_kj1a1, x_kj1a2] *= -1
+							#self.__bvm[x_k1a1, x_k1a2] *= 1
+							self.__bvmt[x_kja1, x_kja2] = 1
+							self.__bvmt[x_kj1a1, x_kj1a2] = 1
+							self.__bvmt[x_k1a1, x_k1a2] = 1
 
 					# g node
-					for G_a in range(self.p()):
-						g_k1a = G_k + G_a
-						g_kj1a = G_kj1 + G_a
-						g_scale = 2 ** G_a
-						self.__bvm[g_kj1a, g_kj1a] += (g_scale ** 2 + 2 * g_scale) * self.__l0
-						self.__bvm[g_k1a, g_k1a] += g_scale * self.__l0
+					for G_a1 in range(self.p()):
+						for G_a2 in range(self.p()):
+							g_kj1a1 = G_kj1 + G_a1
+							g_kj1a2 = G_kj1 + G_a2
+							g_k1a1 = G_k + G_a1
+							g_k1a2 = G_k + G_a2
+							self.__bvm[g_kj1a1, g_kj1a2] *= 2
+							#self.__bvm[g_k1a1, g_k1a2] *= 1
+							self.__bvmt[g_kj1a1, g_kj1a2] = 1
+							self.__bvmt[g_k1a1, g_k1a2] = 1
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
-						x_scale1 = 2 ** x_a1
 						for x_a2 in range(self.m()):
-							x_scale2 = 2 ** x_a2
-							self.__bvm[x_kj + x_a1, x_kj + x_a2] -=  2 * x_scale1 * x_scale2 * self.__l0
+							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] *= -2
+							self.__bvmt[x_kj + x_a1, x_kj1 + x_a2] = 1
 
-					# xy - coupled
+					# xG - coupled
 					for x_a in range(self.m()):
-						x_scale = self.__l0 * 2 ** x_a
 						for G_a in range(self.p()):
-							g_scale = 2 ** G_a
-							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2 * x_scale * g_scale * self.__l0
-							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * x_scale * g_scale * self.__l0
-							self.__bvm[x_k + x_a, G_k + G_a] -= 2 * x_scale * g_scale * self.__l0
+							self.__bvm[x_kj + x_a, G_kj1 + G_a] *= 2
+							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] *= -2
+							self.__bvm[x_k + x_a, G_k + G_a] *= -2
+							self.__bvmt[x_kj + x_a, G_kj1 + G_a] = 1
+							self.__bvmt[x_kj1 + x_a, G_kj1 + G_a] = 1
+							self.__bvmt[x_k + x_a, G_k + G_a] = 1
 
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
+			print("\n", self.__bvm)
+
+			for i in range(self.get_NbBV()):
+				for j in range(self.get_NbBV()):
+					if self.__bvmt[i,j] == 0:
+						self.__bvm[i,j] = 0
+
+
 
 
 	def __addE1Coefficients(self, intmode=False):
@@ -358,9 +440,11 @@ class BVC:
 				L_k = len(self.__x[k])
 				for j in range(1, L_k):
 					g_kj = g_k + (j * self.p())
-					for a in range(self.p()):
-						g_kja = g_kj + a
-						self.__bvm[g_kja, g_kja] += (2 ** a) * self.__l1
+					for a1 in range(self.p()):
+						for a2 in range(a1, self.p()):
+							g_kja1 = g_kj + a1
+							g_kja2 = g_kj + a2
+							self.__bvm[g_kja1, g_kja2] *= self.__l1
 				g_k += L_k * self.p()
 
 	def __addE2Coefficients(self):
@@ -462,14 +546,21 @@ class BVC:
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
 		size = self.get_NbBV()
 		self.__bvm = numpy.zeros((size, size))
+		self.__bvmt = numpy.zeros((size, size))
+		self.__linkBVs()
+		numpy.set_printoptions(threshold=numpy.inf, linewidth=numpy.inf)
+		print("\n\nBVM - linking binary variables\n", self.__bvm)
+
 		self.__addE0Coefficients()
-		self.__addE1Coefficients()
+		print("\n\nBVM - After E0 applied\n", self.__bvm)
+		#self.__addE1Coefficients()
+		print("\n\nBVM - After E1 applied\n", self.__bvm)
 		#self.__addE2Coefficients()
 		if True:
 			isize = self.K() * 2
 			self.__im = numpy.zeros((isize, isize))
 			self.__addE0Coefficients(intmode=True)
-			self.__addE1Coefficients(intmode=True)
+			#self.__addE1Coefficients(intmode=True)
 
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
