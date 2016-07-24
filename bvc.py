@@ -279,14 +279,14 @@ class BVC:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(k, self.m()):
-							scale = max(2 ** k, 2 ** l)
+							scale = min(2 ** k, 2 ** l)
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
 							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(k, self.p()):
-							scale = max(2 ** k, 2 ** l)
+							scale = min(2 ** k, 2 ** l)
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
 							self.__bvm[x, y] = scale
@@ -295,14 +295,14 @@ class BVC:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(self.m()):
-							scale = max(2 ** k, 2 ** l)
+							scale = min(2 ** k, 2 ** l)
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
 							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(self.p()):
-							scale = max(2 ** k, 2 ** l)
+							scale = min(2 ** k, 2 ** l)
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
 							self.__bvm[x, y] = scale
@@ -313,7 +313,7 @@ class BVC:
 				# Pos v gap vars
 				for k in range(self.m()):
 					for l in range(self.p()):
-						scale = max(2 ** k, 2 ** l)
+						scale = min(2 ** k, 2 ** l)
 						x = (i * self.m()) + k
 						y = (j * self.p()) + l + self.get_gVarOffset()
 						self.__bvm[x, y] = scale
