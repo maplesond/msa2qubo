@@ -549,16 +549,16 @@ class BVC:
 
 		self.__addE0Coefficients()
 		print("\n\nBVM - After E0 applied\n", self.__bvm)
-		self.__addE1Coefficients()
-		print("\n\nBVM - After E1 applied\n", self.__bvm)
+		#self.__addE1Coefficients()
+		#print("\n\nBVM - After E1 applied\n", self.__bvm)
 		#self.__addE2Coefficients()
-		#self.__cleanBVs()
-		#print("\n\nBVM - After cleaning\n", self.__bvm)
+		self.__cleanBVs()
+		print("\n\nBVM - After cleaning\n", self.__bvm)
 		if True:
 			isize = self.K() * 2
 			self.__im = numpy.zeros((isize, isize))
 			self.__addE0Coefficients(intmode=True)
-			self.__addE1Coefficients(intmode=True)
+			#self.__addE1Coefficients(intmode=True)
 
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 

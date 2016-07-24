@@ -68,6 +68,6 @@ def main():
 	endall = time.time()
 	print()
 	print("=======================")
-	print("Total time taken: ", "{0:.2f}".format(round(endall - startall,2)))
+	print("Total time taken (s): ", "{0:.2f}".format(round(endall - startall,2)))
 
 main()
