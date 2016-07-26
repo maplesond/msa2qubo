@@ -60,7 +60,7 @@ def main():
 	print()
 
 	start3 = time.time()
-	m2q = Qubo2Msa(settings=args.output_dir + "/qmsa.qubo.settings", solution=args.output_dir + "/qmsa.solution", input=args.input, output=args.output_dir + "/qmsa.msa", active=m2q.active, verbose=args.verbose)
+	m2q = Qubo2Msa(settings=args.output_dir + "/qmsa.qubo.settings", solution=args.output_dir + "/qmsa.solution", input=args.input, output=args.output_dir + "/qmsa.msa", active=m2q.active, target_energy=m2q.energy, verbose=args.verbose)
 	m2q.run()
 	end3 = time.time()
 	print("Time taken to interpret solution (s): ", "{0:.2f}".format(round(end3 - start3,2)))

@@ -11,7 +11,7 @@ from bvc import BVC
 
 class Qubo2Msa:
 
-	def __init__(self, settings, solution, input, output, active, verbose):
+	def __init__(self, settings, solution, input, output, active, target_energy, verbose):
 		self.data = []
 		self.settings = settings
 		self.solution = solution
@@ -19,6 +19,7 @@ class Qubo2Msa:
 		self.output = output
 		self.active = active
 		self.verbose = verbose
+		self.target_energy = target_energy
 
 	def run(self):
 
@@ -28,7 +29,20 @@ class Qubo2Msa:
 		bvc.load_bvs(self.solution, self.active)
 		print("Loaded solution to QUBO problem with", len(self.active), "binary variables (", sum(self.active), "of which are active. )")
 		print()
+		energy = bvc.get_energy_from_file(self.solution)
+		print("Energy - Target:", self.target_energy)
+		print("Energy - Actual:", energy)
+		print("Tolerance: 0.5")
+		diff = abs(energy - self.target_energy)
+		if diff < 0.5:
+			print("Difference between actual and target energy is within tolerance:", diff)
+		else:
+			print("*****************************************************************************")
+			print("WARNING: Difference between actual and target energy exceeds tolerance:", diff)
+			print("WARNING: It is likely that the solution provided by the solver is not optimal")
+			print("*****************************************************************************")
 
+		print()
 		print("Loading input sequences into memory...", end="")
 		handle = open(self.input, "rU")
 		records = list(SeqIO.parse(handle, "fasta"))
