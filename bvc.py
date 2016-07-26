@@ -279,14 +279,14 @@ class BVC:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(k, self.m()):
-							scale = min(2 ** k, 2 ** l)
+							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
 							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(k, self.p()):
-							scale = min(2 ** k, 2 ** l)
+							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
 							self.__bvm[x, y] = scale
@@ -295,14 +295,14 @@ class BVC:
 					# Pos v pos vars
 					for k in range(self.m()):
 						for l in range(self.m()):
-							scale = min(2 ** k, 2 ** l)
+							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
 							x = (i * self.m()) + k
 							y = (j * self.m()) + l
 							self.__bvm[x, y] = scale
 					# Gap v gap vars
 					for k in range(self.p()):
 						for l in range(self.p()):
-							scale = min(2 ** k, 2 ** l)
+							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
 							x = (i * self.p()) + k + self.get_gVarOffset()
 							y = (j * self.p()) + l + self.get_gVarOffset()
 							self.__bvm[x, y] = scale
@@ -333,11 +333,16 @@ class BVC:
 					G_kj1 = G_k + j + 1
 
 					# Nodes
-					self.__im[x_kj, x_kj] += self.__l0 * 2
-					self.__im[x_kj1, x_kj1] += self.__l0 * -2
-					self.__im[G_kj1, G_kj1] += self.__l0 * -2
-					self.__im[x_k, x_k] += self.__l0 * 1
-					self.__im[G_k, G_k] += self.__l0 * 1
+					#self.__im[x_kj, x_kj] += self.__l0 * 2		# Squared
+					#self.__im[x_kj1, x_kj1] += self.__l0 * -2	# Squared
+					#self.__im[G_kj1, G_kj1] += self.__l0 * -2	# Squared
+					#self.__im[x_k, x_k] += self.__l0 * 1		# Squared
+					#self.__im[G_k, G_k] += self.__l0 * 1		# Squared
+					self.__im[x_kj, x_kj] += self.__l0 * 10		# Squared
+					self.__im[x_kj1, x_kj1] += self.__l0 * -6	# Squared
+					self.__im[G_kj1, G_kj1] += self.__l0 * 10	# Squared
+					self.__im[x_k, x_k] += self.__l0 * 5		# Squared
+					self.__im[G_k, G_k] += self.__l0 * 5		# Squared
 
 					# Couplers
 					self.__im[x_kj, x_kj1] += self.__l0 * -2
@@ -371,9 +376,10 @@ class BVC:
 							x_kj1a2 = x_kj1 + x_a2
 							x_k1a1 = x_k + x_a1
 							x_k1a2 = x_k + x_a2
-							self.__bvm[x_kja1, x_kja2] *= 2
-							self.__bvm[x_kj1a1, x_kj1a2] *= -2
-							#self.__bvm[x_k1a1, x_k1a2] *= 1
+							self.__bvm[x_kja1, x_kja2] *= 10	# Squared
+							#self.__bvm[x_kj1a1, x_kj1a2] *= -8	# Squared
+							self.__bvm[x_kj1a1, x_kj1a2] *= 8	# Squared
+							self.__bvm[x_k1a1, x_k1a2] *= 5		# Squared
 							self.__bvmt[x_kja1, x_kja2] = 1
 							self.__bvmt[x_kj1a1, x_kj1a2] = 1
 							self.__bvmt[x_k1a1, x_k1a2] = 1
@@ -385,23 +391,25 @@ class BVC:
 							g_kj1a2 = G_kj1 + G_a2
 							g_k1a1 = G_k + G_a1
 							g_k1a2 = G_k + G_a2
-							self.__bvm[g_kj1a1, g_kj1a2] *= -2
-							#self.__bvm[g_k1a1, g_k1a2] *= 1
+							self.__bvm[g_kj1a1, g_kj1a2] *= 10	# Squared
+							self.__bvm[g_k1a1, g_k1a2] *= 5		# Squared
 							self.__bvmt[g_kj1a1, g_kj1a2] = 1
 							self.__bvmt[g_k1a1, g_k1a2] = 1
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
 						for x_a2 in range(self.m()):
-							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] *= -2
+							#self.__bvm[x_kj + x_a1, x_kj1 + x_a2] *= -2
+							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] *= 2
 							self.__bvmt[x_kj + x_a1, x_kj1 + x_a2] = 1
 
 					# xG - coupled
 					for x_a in range(self.m()):
 						for G_a in range(self.p()):
-							self.__bvm[x_kj + x_a, G_kj1 + G_a] *= 2
-							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] *= -2
-							self.__bvm[x_k + x_a, G_k + G_a] *= -2
+							#self.__bvm[x_kj + x_a, G_kj1 + G_a] *= 2
+							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] *= 2
+							#self.__bvm[x_k + x_a, G_k + G_a] *= -2
+							self.__bvm[x_k + x_a, G_k + G_a] *= 2
 							self.__bvmt[x_kj + x_a, G_kj1 + G_a] = 1
 							self.__bvmt[x_kj1 + x_a, G_kj1 + G_a] = 1
 							self.__bvmt[x_k + x_a, G_k + G_a] = 1
