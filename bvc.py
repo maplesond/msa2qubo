@@ -3,11 +3,15 @@
 import os
 import argparse
 import math
-import numpy
+import numpy as np
 import copy
 import sys
 from Bio import SeqIO
 
+try:
+    import gurobipy
+except ImportError:
+	pass
 
 class BVC:
 	"""This class represents the binary variables required for a given number of sequences.  Little endian is used where
@@ -59,11 +63,11 @@ class BVC:
 			handle.close()
 
 
-		self.__W = numpy.zeros((0, 0))
+		self.__W = np.zeros((0, 0))
 
-		self.__bvm = numpy.zeros((0, 0))
-		self.__bvmt = numpy.zeros((0, 0))
-		self.__im = numpy.zeros((0, 0))
+		self.__bvm = np.zeros((0, 0))
+		self.__bvmt = np.zeros((0, 0))
+		self.__im = np.zeros((0, 0))
 
 		self.__bvs = []
 		self.energy = 0
@@ -196,11 +200,11 @@ class BVC:
 
 	def m(self):
 		"""Returns the number of binary variables required to represent each row in solution space"""
-		return math.ceil(numpy.log2(self.M()))
+		return math.ceil(np.log2(self.M()))
 
 	def p(self):
 		"""Returns the number of binary variables required to represent each gap"""
-		return math.ceil(numpy.log2(self.__P + 1))
+		return math.ceil(np.log2(self.__P + 1))
 
 	def x(self):
 		return self.__x
@@ -235,6 +239,9 @@ class BVC:
 		"""Calculate upper bound on number of binary variables required"""
 		return self.calc_minBV() + math.ceil(self.__N * (self.__N - 1) * (self.__Lmax ** 2) * (1 + 2 * self.m()) / 2)
 
+	def get_NbIV(self):
+		return self.get_NbPositioningVars(intmode=True) + self.get_NbGapVars(intmode=True)
+
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
 		#return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
@@ -259,8 +266,8 @@ class BVC:
 	def get_NbPositioningVars(self, intmode=False):
 		return self.K() * self.m() if not intmode else self.K()
 
-	def get_NbGapVars(self):
-		return self.K() * self.p()
+	def get_NbGapVars(self, intmode=False):
+		return self.K() * self.p() if not intmode else self.K()
 
 	def get_NbRewardVars(self):
 		count = 0
@@ -278,6 +285,12 @@ class BVC:
 
 	def get_NbZVars(self):
 		return self.get_NbRewardVars() * self.m()
+
+	def lenK(self, k):
+		return len(self.__x[k])
+
+	def im(self, x, y):
+		return self.__im[x,y]
 
 	def __initBVs(self):
 		# First time around just set the binary variable scalars with the user defined l0
@@ -345,11 +358,11 @@ class BVC:
 					G_kj1 = G_k + j + 1
 
 					# Nodes
-					self.__im[x_kj, x_kj] += self.__l0 * 2		# Squared
-					self.__im[x_kj1, x_kj1] += self.__l0 * -2	# Squared
-					self.__im[G_kj1, G_kj1] += self.__l0 * 2	# Squared
-					self.__im[x_k, x_k] += self.__l0 * 1		# Squared
-					self.__im[G_k, G_k] += self.__l0 * 1		# Squared
+					self.__im[x_kj, x_kj] += 1		# Squared
+					self.__im[x_kj1, x_kj1] += 1	# Squared
+					self.__im[G_kj1, G_kj1] += 1	# Squared
+					self.__im[x_k, x_k] += 1		# Squared
+					self.__im[G_k, G_k] += 1		# Squared
 					#self.__im[x_kj, x_kj] += self.__l0 * 10	# Squared
 					#self.__im[x_kj1, x_kj1] += self.__l0 * -6	# Squared
 					#self.__im[G_kj1, G_kj1] += self.__l0 * 10	# Squared
@@ -357,13 +370,13 @@ class BVC:
 					#self.__im[G_k, G_k] += self.__l0 * 5		# Squared
 
 					# Couplers
-					self.__im[x_kj, x_kj1] += self.__l0 * -2
-					self.__im[x_kj, G_kj1] += self.__l0 * 2
-					self.__im[x_kj1, G_kj1] += self.__l0 * -2
-					self.__im[x_k, G_k] += self.__l0 * -2
+					self.__im[x_kj, x_kj1] += -2
+					self.__im[x_kj, G_kj1] += 2
+					self.__im[x_kj1, G_kj1] += -2
+					self.__im[x_k, G_k] += -2
 
 					# Left over energy
-					self.ienergy += self.__l0
+					self.ienergy += 1
 
 				x_k += L_k
 				G_k += L_k
@@ -544,7 +557,7 @@ class BVC:
 	def createW(self):
 
 		N=self.__N
-		self.__W=numpy.empty(shape=(self.__Lmax,self.__Lmax,N,N))
+		self.__W=np.empty(shape=(self.__Lmax,self.__Lmax,N,N))
 
 		for k in range(N-1):
 			for q in range(k+1,N):
@@ -555,25 +568,26 @@ class BVC:
 	def w(self, i, j, k, q):
 		return self.__W[i,j,k,q]
 
-	def createBVMatrix(self):
+	def createBVMatrix(self, intmode=False):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
-		size = self.get_NbBV()
-		self.__bvm = numpy.zeros((size, size))
-		self.__bvmt = numpy.zeros((size, size))
-		self.__initBVs()
-		numpy.set_printoptions(threshold=numpy.inf, linewidth=numpy.inf)
-		print("\n\nBVM - linking binary variables\n", self.__bvm)
+		if not intmode:
+			size = self.get_NbBV()
+			self.__bvm = np.zeros((size, size))
+			self.__bvmt = np.zeros((size, size))
+			self.__initBVs()
+			np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+			print("\n\nBVM - linking binary variables\n", self.__bvm)
 
-		self.__addE0Coefficients()
-		print("\n\nBVM - After E0 applied\n", self.__bvm)
-		#self.__addE1Coefficients()
-		#print("\n\nBVM - After E1 applied\n", self.__bvm)
-		#self.__addE2Coefficients()
-		self.__cleanBVs()
-		print("\n\nBVM - After cleaning\n", self.__bvm)
-		if True:
-			isize = self.K() * 2
-			self.__im = numpy.zeros((isize, isize))
+			self.__addE0Coefficients()
+			print("\n\nBVM - After E0 applied\n", self.__bvm)
+			#self.__addE1Coefficients()
+			#print("\n\nBVM - After E1 applied\n", self.__bvm)
+			#self.__addE2Coefficients()
+			self.__cleanBVs()
+			print("\n\nBVM - After cleaning\n", self.__bvm)
+		else:
+			isize = self.get_NbIV()
+			self.__im = np.zeros((isize, isize))
 			self.__addE0Coefficients(intmode=True)
 			#self.__addE1Coefficients(intmode=True)
 

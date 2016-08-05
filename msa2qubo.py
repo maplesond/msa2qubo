@@ -23,6 +23,7 @@ class Msa2Qubo:
 
 		self.energy = 0.0
 		self.active = []
+		self.bvc = None
 
 
 	def run(self):
@@ -56,9 +57,9 @@ class Msa2Qubo:
 		print("Input:")
 
 		# Collect variables
-		bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2)
+		self.bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2)
 		for r in records:
-			bvc.add_record(r)
+			self.bvc.add_record(r)
 
 			# Input will only be small so just output every sequence found
 			print(">" + r.id)
@@ -67,37 +68,34 @@ class Msa2Qubo:
 		print()
 
 		# Print current state of variables
-		print(bvc)
+		print(self.bvc)
 
 		# Save settings file
 		print()
-		bvc.save_settings(self.output + ".settings")
+		self.bvc.save_settings(self.output + ".settings")
 		print("Saved settings to: " + self.output + ".settings")
 
 		# Create matrix
 		print()
 		print("Creating W matrix ...", end="")
 		sys.stdout.flush()
-		bvc.createW()
+		self.bvc.createW()
 		# print (m)
 		print(" done")
 		print("Creating matrix of coefficients of binary variables ...", end="")
 		sys.stdout.flush()
-		bvc.createBVMatrix()
+		self.bvc.createBVMatrix()
 		print(" done")
-		print("Integer representation of coefficients ( Target energy", -bvc.ienergy, "):")
-		print("Note: this isn't very helpful as there is no way to represent whether the value is squared or not.  If squaring was required we just ignore it.")
-		print(bvc.im())
-		print("Number of active binary variables:", bvc.calcActiveBVs())
-		self.active = bvc.active
+		print("Number of active binary variables:", self.bvc.calcActiveBVs())
+		self.active = self.bvc.active
 
-		self.energy = -bvc.energy
+		self.energy = -self.bvc.energy
 		print("Target energy:", self.energy)
 
 		# Write QUBO file to disk
 		print("Writing QUBO output to disk ...", end="")
 		sys.stdout.flush()
-		bvc.writeQUBO(self.output, self.input)
+		self.bvc.writeQUBO(self.output, self.input)
 		print(" done")
 		print("Output saved to:" + self.output)
 		sys.stdout.flush()

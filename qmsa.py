@@ -6,6 +6,14 @@ import subprocess
 import time
 from msa2qubo import Msa2Qubo
 from qubo2msa import Qubo2Msa
+import gurobi
+
+gurobi_available = True
+try:
+    import gurobipy
+except ImportError:
+	gurobi_available = False
+	pass
 
 def main():
 	parser = argparse.ArgumentParser("Perform MSA using D-Wave Simulator")
@@ -19,8 +27,12 @@ def main():
 						help="The weighting to apply to gap penalties")
 	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
 						help="The weighting to apply to reward matches (must be greater than 1.0)")
+	parser.add_argument("--do_iqp", action='store_true', default="False", help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
+
+	if args.do_iqp and not gurobi_available:
+		print("Cannot run IQP as gurobi is not available on your system.  Please rerun without \"--do_iqp\" or install gurobi into your python environment.")
 
 	startall = time.time()
 
@@ -60,10 +72,21 @@ def main():
 	print()
 
 	start3 = time.time()
-	m2q = Qubo2Msa(settings=args.output_dir + "/qmsa.qubo.settings", solution=args.output_dir + "/qmsa.solution", input=args.input, output=args.output_dir + "/qmsa.msa", active=m2q.active, target_energy=m2q.energy, verbose=args.verbose)
-	m2q.run()
+	q2m = Qubo2Msa(settings=args.output_dir + "/qmsa.qubo.settings", solution=args.output_dir + "/qmsa.solution", input=args.input, output=args.output_dir + "/qmsa.msa", active=m2q.active, target_energy=m2q.energy, verbose=args.verbose)
+	q2m.run()
 	end3 = time.time()
 	print("Time taken to interpret solution (s): ", "{0:.2f}".format(round(end3 - start3,2)))
+
+
+	if args.do_iqp and gurobi_available:
+		print()
+		print()
+		print("Solving Mixed Integer Quadratic Programming problem")
+		print("---------------------------------------------------")
+		print()
+		gurobi.optimise(m2q.bvc)
+
+
 
 	endall = time.time()
 	print()
