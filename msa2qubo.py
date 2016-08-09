@@ -82,6 +82,10 @@ class Msa2Qubo:
 		self.bvc.createW()
 		# print (m)
 		print(" done")
+
+		self.bvc.createBVMatrix(intmode=True)
+		self.bvc.printIntegerCoefficients()
+
 		print("Creating matrix of coefficients of binary variables ...", end="")
 		sys.stdout.flush()
 		self.bvc.createBVMatrix()

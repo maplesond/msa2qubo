@@ -35,12 +35,7 @@ def optimise(data):
 
 	data.createBVMatrix(intmode=True)
 
-	print("Quadratic coefficients:")
-	data.printqim()
-	print()
-	print("Linear coefficients:")
-	data.printlil()
-	print()
+	data.printIntegerCoefficients()
 
 	# Set objective: x^2 + x*y + y^2 + y*z + z^2 + 2 x
 	obj = data.ienergy

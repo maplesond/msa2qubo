@@ -324,6 +324,17 @@ class BVC:
 		print()
 		print(self.__lil)
 
+	def printIntegerCoefficients(self):
+		print("Quadratic coefficients:")
+		self.printqim()
+		print()
+		print("Linear coefficients:")
+		self.printlil()
+		print()
+		print("Constant:")
+		print(self.ienergy)
+		print()
+
 
 	def __addE0Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E0"""
@@ -371,7 +382,7 @@ class BVC:
 					x_kj = x_k + (j * self.m())
 					x_kj1 = x_k + ((j + 1) * self.m())
 					G_kj1 = G_k + ((j + 1) * self.p())
-					self.energy += self.__l0
+					self.energy += 1
 
 					# x nodes.  Include quadratic and linear terms
 					for x_a1 in range(self.m()):
@@ -383,14 +394,17 @@ class BVC:
 							x_k1a1 = x_k + x_a1
 							x_k1a2 = x_k + x_a2
 
+							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2 + 1))
+
 							# Quadratic parts
-							self.__bvm[x_kja1, x_kja2] += 1
-							self.__bvm[x_kj1a1, x_kj1a2] += 1
-							self.__bvm[x_k1a1, x_k1a2] += 1
+							self.__bvm[x_kja1, x_kja2] += quad_scale
+							self.__bvm[x_kj1a1, x_kj1a2] += quad_scale
+							self.__bvm[x_k1a1, x_k1a2] += quad_scale
 
 							# Linear parts
-							self.__bvm[x_kja1, x_kja2] += 2
-							self.__bvm[x_kj1a1, x_kj1a2] -= 2
+							if x_a1 == x_a2:
+								self.__bvm[x_kja1, x_kja2] += 2 * (2 ** x_a1)
+								self.__bvm[x_kj1a1, x_kj1a2] -= 2 * (2 ** x_a1)
 
 
 					# g node
@@ -401,25 +415,30 @@ class BVC:
 							g_k1a1 = G_k + G_a1
 							g_k1a2 = G_k + G_a2
 
+							quad_scale = (2 ** G_a1) ** 2 if G_a1 == G_a2 else (2 ** (G_a1 + G_a2 + 1))
+
 							# Quadratic parts
-							self.__bvm[g_kj1a1, g_kj1a2] += 1
-							self.__bvm[g_k1a1, g_k1a2] += 1
+							self.__bvm[g_kj1a1, g_kj1a2] += quad_scale
+							self.__bvm[g_k1a1, g_k1a2] += quad_scale
 
 							# Linear parts
-							self.__bvm[g_kj1a1, g_kj1a2] += 2
+							if G_a1 == G_a2:
+								self.__bvm[g_kj1a1, g_kj1a2] += 2 * (2 ** G_a1)
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
-						for x_a2 in range(self.m()):
-							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] -= 2
+						for x_a2 in range(x_a1, self.m()):
+							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2))
+							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
 
 
 					# xG - coupled
-					for x_a in range(self.m()):
-						for G_a in range(self.p()):
-							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2
-							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2
-							self.__bvm[x_k + x_a, G_k + G_a] -= 2
+					for G_a in range(self.p()):
+						for x_a in range(G_a, self.m()):
+							quad_scale = (2 ** x_a) ** 2 if x_a == G_a else (2 ** (G_a + x_a))
+							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
+							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
+							self.__bvm[x_k + x_a, G_k + G_a] -= 2 * quad_scale
 
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
@@ -507,56 +526,6 @@ class BVC:
 							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
 							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
 
-	def __applyBitPower(self):
-
-		# First time around just set the binary variable scalars with the user defined l0
-		for i in range(self.__K):
-			for j in range(i, self.__K):
-				# Don't go under the diagonal
-				if i == j:
-					# Pos v pos vars
-					for k in range(self.m()):
-						for l in range(k, self.m()):
-							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
-							x = (i * self.m()) + k
-							y = (j * self.m()) + l
-							self.__bvm[x, y] *= scale
-					# Gap v gap vars
-					for k in range(self.p()):
-						for l in range(k, self.p()):
-							scale = 2 ** k + 2 ** l if not k == l else 2 ** k
-							x = (i * self.p()) + k + self.get_gVarOffset()
-							y = (j * self.p()) + l + self.get_gVarOffset()
-							self.__bvm[x, y] *= scale
-
-				else:
-					# Pos v pos vars
-					for k in range(self.m()):
-						for l in range(self.m()):
-							scale = 2 ** k + 2 ** l
-							x = (i * self.m()) + k
-							y = (j * self.m()) + l
-							self.__bvm[x, y] *= scale
-					# Gap v gap vars
-					for k in range(self.p()):
-						for l in range(self.p()):
-							scale = 2 ** k + 2 ** l
-							x = (i * self.p()) + k + self.get_gVarOffset()
-							y = (j * self.p()) + l + self.get_gVarOffset()
-							self.__bvm[x, y] *= scale
-
-
-		# Pos v gap vars
-		for i in range(self.__K):
-			for j in range(self.__K):
-				for k in range(self.m()):
-					for l in range(self.p()):
-						scale = 2 ** k + 2 ** l
-						x = (i * self.m()) + k
-						y = (j * self.p()) + l + self.get_gVarOffset()
-						self.__bvm[x, y] *= scale
-
-
 
 	def __calcNbNodes(self):
 		count = 0
@@ -603,15 +572,14 @@ class BVC:
 			size = self.get_NbBV()
 			self.__bvm = np.zeros((size, size))
 			self.__bvmt = np.zeros((size, size))
-			np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
 			self.__addE0Coefficients()
 			print("\n\nBVM - After E0 applied\n", self.__bvm)
 			#self.__addE1Coefficients()
 			#print("\n\nBVM - After E1 applied\n", self.__bvm)
 			#self.__addE2Coefficients()
-			self.__applyBitPower()
-			print("\n\nBVM - After applying bit power\n", self.__bvm)
+
 		else:
 			isize = self.get_NbIV()
 			self.__qim = np.zeros((isize, isize))
