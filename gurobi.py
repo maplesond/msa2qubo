@@ -35,22 +35,36 @@ def optimise(data):
 
 	data.createBVMatrix(intmode=True)
 
+	print("Quadratic coefficients:")
+	data.printqim()
+	print()
+	print("Linear coefficients:")
+	data.printlil()
+	print()
+
 	# Set objective: x^2 + x*y + y^2 + y*z + z^2 + 2 x
 	obj = data.ienergy
 	for i in range(data.get_NbIV()):
 		for j in range(data.get_NbIV()):
-			if data.im(i,j) != 0:
-				obj += data.l0() * data.im(i,j) * vars[i] * vars[j]
+			if data.qim(i,j) != 0:
+				obj += data.qim(i,j) * vars[i] * vars[j]
+		if data.lil(i) != 0:
+			obj += data.lil(i) * vars[i]
 
+	obj = data.l0() * (obj)
+	print("Integer Objective Function:")
 	print(obj)
+	print()
 	m.setObjective(obj)
 
 
 	for i in range(data.get_NbPositioningVars(intmode=True)):
-		m.addConstr(vars[i] <= 8, "cx" + str(i))
+		m.addConstr(vars[i] >= 0, "cx" + str(i))
+		m.addConstr(vars[i] <= data.M(), "cx" + str(i))
 
 	for i in range(data.get_gVarOffset(intmode=True),data.get_NbIV()):
-		m.addConstr(vars[i] <= 1, "cG" + str(i-data.get_gVarOffset(intmode=True)))
+		m.addConstr(vars[i] >= 0, "cG" + str(i-data.get_gVarOffset(intmode=True)))
+		m.addConstr(vars[i] <= data.P(), "cG" + str(i-data.get_gVarOffset(intmode=True)))
 
 
 	m.optimize()

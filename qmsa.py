@@ -6,11 +6,12 @@ import subprocess
 import time
 from msa2qubo import Msa2Qubo
 from qubo2msa import Qubo2Msa
-import gurobi
+
 
 gurobi_available = True
 try:
-    import gurobipy
+	import gurobipy
+	import gurobi
 except ImportError:
 	gurobi_available = False
 	pass

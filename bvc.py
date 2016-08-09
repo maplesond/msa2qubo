@@ -67,7 +67,8 @@ class BVC:
 
 		self.__bvm = np.zeros((0, 0))
 		self.__bvmt = np.zeros((0, 0))
-		self.__im = np.zeros((0, 0))
+		self.__qim = np.zeros((0, 0))
+		self.__lil = []
 
 		self.__bvs = []
 		self.energy = 0
@@ -219,7 +220,7 @@ class BVC:
 		return self.__l2
 
 	def im(self):
-		return self.__im
+		return self.__qim
 
 	def getPosSolution(self):
 		return self.__bvs[0:self.get_NbPositioningVars()]
@@ -289,8 +290,39 @@ class BVC:
 	def lenK(self, k):
 		return len(self.__x[k])
 
-	def im(self, x, y):
-		return self.__im[x,y]
+	def qim(self, x, y):
+		return self.__qim[x, y]
+
+	def lil(self, x):
+		return self.__lil[x]
+
+	def printqim(self):
+		for k in range(self.N()):
+			L_k = len(self.__x[k])
+			for j in range(L_k):
+				print("x_", k, ",", j, sep="", end="")
+				print(" ", end="")
+		for k in range(self.N()):
+			L_k = len(self.__x[k])
+			for j in range(L_k):
+				print("G_", k, ",", j, sep="", end="")
+				print(" ", end="")
+		print()
+		print(self.__qim)
+
+	def printlil(self):
+		for k in range(self.N()):
+			L_k = len(self.__x[k])
+			for j in range(L_k):
+				print("x_", k, ",", j, sep="", end="")
+				print(" ", end="")
+		for k in range(self.N()):
+			L_k = len(self.__x[k])
+			for j in range(L_k):
+				print("G_", k, ",", j, sep="", end="")
+				print(" ", end="")
+		print()
+		print(self.__lil)
 
 	def __initBVs(self):
 		# First time around just set the binary variable scalars with the user defined l0
@@ -358,22 +390,22 @@ class BVC:
 					G_kj1 = G_k + j + 1
 
 					# Nodes
-					self.__im[x_kj, x_kj] += 1		# Squared
-					self.__im[x_kj1, x_kj1] += 1	# Squared
-					self.__im[G_kj1, G_kj1] += 1	# Squared
-					self.__im[x_k, x_k] += 1		# Squared
-					self.__im[G_k, G_k] += 1		# Squared
-					#self.__im[x_kj, x_kj] += self.__l0 * 10	# Squared
-					#self.__im[x_kj1, x_kj1] += self.__l0 * -6	# Squared
-					#self.__im[G_kj1, G_kj1] += self.__l0 * 10	# Squared
-					#self.__im[x_k, x_k] += self.__l0 * 5		# Squared
-					#self.__im[G_k, G_k] += self.__l0 * 5		# Squared
+					self.__qim[x_kj, x_kj] += 1		# Squared
+					self.__qim[x_kj1, x_kj1] += 1	# Squared
+					self.__qim[G_kj1, G_kj1] += 1	# Squared
+					self.__qim[x_k, x_k] += 1		# Squared
+					self.__qim[G_k, G_k] += 1		# Squared
 
 					# Couplers
-					self.__im[x_kj, x_kj1] += -2
-					self.__im[x_kj, G_kj1] += 2
-					self.__im[x_kj1, G_kj1] += -2
-					self.__im[x_k, G_k] += -2
+					self.__qim[x_kj, x_kj1] += -2
+					self.__qim[x_kj, G_kj1] += 2
+					self.__qim[x_kj1, G_kj1] += -2
+					self.__qim[x_k, G_k] += -2
+
+					# Linear parts
+					self.__lil[x_kj] += 2
+					self.__lil[x_kj1] -= 2
+					self.__lil[G_kj1] += 2
 
 					# Left over energy
 					self.ienergy += 1
@@ -452,7 +484,7 @@ class BVC:
 				L_k = len(self.__x[k])
 				for j in range(1, L_k):
 					g_kj = g_k + j
-					self.__im[g_kj, g_kj] += self.__l1
+					self.__qim[g_kj, g_kj] += self.__l1
 				g_k += L_k
 		else:
 			g_k = self.get_gVarOffset()
@@ -587,7 +619,8 @@ class BVC:
 			print("\n\nBVM - After cleaning\n", self.__bvm)
 		else:
 			isize = self.get_NbIV()
-			self.__im = np.zeros((isize, isize))
+			self.__qim = np.zeros((isize, isize))
+			self.__lil = [0] * isize
 			self.__addE0Coefficients(intmode=True)
 			#self.__addE1Coefficients(intmode=True)
 
