@@ -325,6 +325,7 @@ class BVC:
 		print(self.__lil)
 
 	def printIntegerCoefficients(self):
+		np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 		print("Quadratic coefficients:")
 		self.printqim()
 		print()
@@ -409,7 +410,7 @@ class BVC:
 
 					# g node
 					for G_a1 in range(self.p()):
-						for G_a2 in range(self.p()):
+						for G_a2 in range(G_a1, self.p()):
 							g_kj1a1 = G_kj1 + G_a1
 							g_kj1a2 = G_kj1 + G_a2
 							g_k1a1 = G_k + G_a1
@@ -427,7 +428,7 @@ class BVC:
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
-						for x_a2 in range(x_a1, self.m()):
+						for x_a2 in range(self.m()):
 							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2))
 							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
 
@@ -566,6 +567,19 @@ class BVC:
 	def w(self, i, j, k, q):
 		return self.__W[i,j,k,q]
 
+	def sophiesMethod(self):
+		bvec = np.zeros((1, len(self.__bvm))) #1D array
+		np.put(bvec, [x for x in range(0, len(self.__bvm))], [0, 0, 0, 0, 0,
+															  1, 0, 0, 0, 0,
+															  0, 1, 0, 0, 0,
+															  1, 1, 0, 0, 0,
+															  0, 0, 1, 0, 0,
+															  0, 0, 0, 0, 0])
+		print(bvec)
+		#np.put(bvec, ['''index values'''], ['''vector values'''])
+		print("Optimal solution")
+		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
+
 	def createBVMatrix(self, intmode=False):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
 		if not intmode:
@@ -579,6 +593,8 @@ class BVC:
 			#self.__addE1Coefficients()
 			#print("\n\nBVM - After E1 applied\n", self.__bvm)
 			#self.__addE2Coefficients()
+
+			self.sophiesMethod()
 
 		else:
 			isize = self.get_NbIV()

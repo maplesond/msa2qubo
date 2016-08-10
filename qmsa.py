@@ -59,7 +59,7 @@ def main():
 
 	# Assume qbsolv in on the PATH
 	start2 = time.time()
-	cmd_args = ['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-o", args.output_dir + "/qmsa.solution"]
+	cmd_args = ['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(m2q.energy + 0.05), "-o", args.output_dir + "/qmsa.solution"]
 	print("Executing:", " ".join(cmd_args))
 	subprocess.call(cmd_args)
 	subprocess.call(['cat', args.output_dir + "/qmsa.solution"])

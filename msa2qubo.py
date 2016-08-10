@@ -104,6 +104,9 @@ class Msa2Qubo:
 		print("Output saved to:" + self.output)
 		sys.stdout.flush()
 
+
+
+
 def main():
 	parser = argparse.ArgumentParser("Convert Fasta file containing multiple sequences to align, into QUBO format")
 	parser.add_argument("input", help="The file containing sequences to align (to be converted into QUBO)")
