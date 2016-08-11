@@ -477,8 +477,14 @@ class BVC:
 				L_k = len(self.__x[k])
 				for j in range(1, L_k):
 					g_kj = g_k + j
-					self.__qim[g_kj, g_kj] += self.__l1
+					self.__qim[g_kj, g_kj] += 1
 				g_k += L_k
+
+			nbvars = self.get_NbPositioningVars(intmode=True) + self.get_NbGapVars(intmode=True)
+			for k in range(self.get_NbPositioningVars(intmode=True)+1,nbvars):
+				for j in range(k, nbvars):
+					self.__qim[k, j] *= self.__l1
+
 		else:
 			g_k = self.get_gVarOffset()
 			for k in range(self.__N):
@@ -489,8 +495,10 @@ class BVC:
 						for a2 in range(a1, self.p()):
 							g_kja1 = g_kj + a1
 							g_kja2 = g_kj + a2
-							self.__bvm[g_kja1, g_kja2] += self.__l1
+							quad_scale = (2 ** a1) ** 2 if a1 == a2 else (2 ** (a1 + a2 + 1))
+							self.__bvm[g_kja1, g_kja2] += self.__l1*quad_scale
 				g_k += L_k * self.p()
+
 
 	def __addE2Coefficients(self):
 		"""Updates the binary variable matrix with coefficients from E2"""
@@ -612,8 +620,8 @@ class BVC:
 
 			self.__addE0Coefficients()
 			print("\n\nBVM - After E0 applied\n", self.__bvm)
-			#self.__addE1Coefficients()
-			#print("\n\nBVM - After E1 applied\n", self.__bvm)
+			self.__addE1Coefficients()
+			print("\n\nBVM - After E1 applied\n", self.__bvm)
 			#self.__addE2Coefficients()
 
 			self.sophiesMethod()
