@@ -373,6 +373,13 @@ class BVC:
 
 				x_k += L_k
 				G_k += L_k
+
+			nbvars = self.get_NbPositioningVars(intmode=True) + self.get_NbGapVars(intmode=True)
+			for k in range(nbvars):
+				for j in range(k, nbvars):
+					self.__qim[k, j] *= self.__l0
+				self.__lil[k] *= self.__l0
+			self.ienergy *= self.__l0
 		else:
 
 			x_k = 0
@@ -444,7 +451,11 @@ class BVC:
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
 
-
+			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
+			for k in range(nbvars):
+				for j in range(k, nbvars):
+					self.__bvm[k, j] *= self.__l0
+			self.energy *= self.__l0
 
 
 
