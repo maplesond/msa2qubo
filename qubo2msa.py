@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 
-import os
+"""qubo2msa.py: Converts output from a D-Wave device or D-Wave simulator to a MSA."""
+
 import argparse
-import math
-import numpy
-import copy
-import sys
 from Bio import SeqIO
 from bvc import BVC
+
+__author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
+__copyright__ = "Copyright 2016, Quantum MSA"
+__credits__ = ["Dan Mapleson", "Luis Yanes", "Katie Barr",
+                    "Sophie Kirkwood", "Tim Stitt"]
+__license__ = "GPLv3"
+__version__ = "0.0.1"
+__maintainer__ = "Dan Mapleson,"
+__email__ = "daniel.mapleson@earlham.ac.uk"
+__status__ = "Prototype"
 
 class Qubo2Msa:
 

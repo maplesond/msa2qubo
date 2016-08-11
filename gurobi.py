@@ -5,6 +5,15 @@ import bvc
 from gurobipy import *
 import numpy as np
 
+__author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
+__copyright__ = "Copyright 2016, Quantum MSA"
+__credits__ = ["Dan Mapleson", "Luis Yanes", "Katie Barr",
+                    "Sophie Kirkwood", "Tim Stitt"]
+__license__ = "GPLv3"
+__version__ = "0.0.1"
+__maintainer__ = "Dan Mapleson,"
+__email__ = "daniel.mapleson@earlham.ac.uk"
+__status__ = "Prototype"
 
 def optimise(data):
 

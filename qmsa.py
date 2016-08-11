@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+"""qmsa.py: Pipeline script for driving MSA via a D-Wave simulator"""
+
 import os
 import argparse
 import subprocess
@@ -15,6 +17,17 @@ try:
 except ImportError:
 	gurobi_available = False
 	pass
+
+__author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
+__copyright__ = "Copyright 2016, Quantum MSA"
+__credits__ = ["Dan Mapleson", "Luis Yanes", "Katie Barr",
+                    "Sophie Kirkwood", "Tim Stitt"]
+__license__ = "GPLv3"
+__version__ = "0.0.1"
+__maintainer__ = "Dan Mapleson,"
+__email__ = "daniel.mapleson@earlham.ac.uk"
+__status__ = "Prototype"
+
 
 def main():
 	parser = argparse.ArgumentParser("Perform MSA using D-Wave Simulator")

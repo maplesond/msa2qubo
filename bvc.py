@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 
-import os
-import argparse
+"""bvc.py: Manages binary and integer variables for the MSA 2 QUBO problem"""
+
 import math
 import numpy as np
-import copy
-import sys
-from Bio import SeqIO
 
 try:
     import gurobipy
 except ImportError:
 	pass
+
+
+__author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
+__copyright__ = "Copyright 2016, Quantum MSA"
+__credits__ = ["Dan Mapleson", "Luis Yanes", "Katie Barr",
+                    "Sophie Kirkwood", "Tim Stitt"]
+__license__ = "GPLv3"
+__version__ = "0.0.1"
+__maintainer__ = "Dan Mapleson,"
+__email__ = "daniel.mapleson@earlham.ac.uk"
+__status__ = "Prototype"
+
 
 class BVC:
 	"""This class represents the binary variables required for a given number of sequences.  Little endian is used where
