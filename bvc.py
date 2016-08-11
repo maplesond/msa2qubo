@@ -434,8 +434,8 @@ class BVC:
 
 
 					# xG - coupled
-					for G_a in range(self.p()):
-						for x_a in range(G_a, self.m()):
+					for x_a in range(self.m()):
+						for G_a in range(x_a, self.p()):
 							quad_scale = (2 ** x_a) ** 2 if x_a == G_a else (2 ** (G_a + x_a))
 							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
 							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
@@ -586,6 +586,8 @@ class BVC:
 			size = self.get_NbBV()
 			self.__bvm = np.zeros((size, size))
 			self.__bvmt = np.zeros((size, size))
+			self.energy = 0
+
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
 			self.__addE0Coefficients()
@@ -600,6 +602,7 @@ class BVC:
 			isize = self.get_NbIV()
 			self.__qim = np.zeros((isize, isize))
 			self.__lil = [0] * isize
+			self.ienergy = 0
 			self.__addE0Coefficients(intmode=True)
 			#self.__addE1Coefficients(intmode=True)
 
