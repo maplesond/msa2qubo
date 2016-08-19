@@ -186,7 +186,8 @@ class BVC:
 			g_k += klen * self.p()
 		return gm
 
-
+	def W(self):
+		return self.__W
 
 	def N(self):
 		return self.__N
@@ -220,12 +221,15 @@ class BVC:
 		return self.__x
 
 	def l0(self):
+		""" Penalty for placing the characters out of order."""
 		return self.__l0
 
 	def l1(self):
+		""" Penalty for adding gaps."""
 		return self.__l1
 
 	def l2(self):
+		""" Affinity of characters across sequences, lower values relaxes the aligner to spread-out positions. """
 		return self.__l2
 
 	def im(self):
@@ -423,7 +427,6 @@ class BVC:
 								self.__bvm[x_kja1, x_kja2] += 2 * (2 ** x_a1)
 								self.__bvm[x_kj1a1, x_kj1a2] -= 2 * (2 ** x_a1)
 
-
 					# g node
 					for G_a1 in range(self.p()):
 						for G_a2 in range(G_a1, self.p()):
@@ -468,6 +471,7 @@ class BVC:
 
 
 
+
 	def __addE1Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E1"""
 
@@ -499,62 +503,13 @@ class BVC:
 							self.__bvm[g_kja1, g_kja2] += self.__l1*quad_scale
 				g_k += L_k * self.p()
 
-
-	def __addE2Coefficients(self):
+	def __addE2Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E2"""
-		for k in range(self.__N - 1):
-			L_k = len(self.__x[k])
-			k_offset = k * (self.__N - 1) * self.__Lmax ** 2
-			r_k = self.get_rVarOffset() + k_offset
-			y_k = self.get_yVarOffset() + (k_offset * self.m())
-			z_k = self.get_zVarOffset() + (k_offset * self.m())
-			for q in range(k + 1, self.__N):
-				qlen = len(self.__x[q])
-				b_k = k * L_k * self.m()
-				b_q = q * qlen * self.m()
-				e = (q - k - 1) * self.__Lmax ** 2
-				r_kq = r_k + e
-				y_kq = y_k + (e * self.m())
-				z_kq = z_k + (e * self.m())
-				for i in range(L_k):
-					r_ikq = r_kq + (i * self.__Lmax)
-					y_ikq = y_kq + (i * self.__Lmax * self.m())
-					z_ikq = z_kq + (i * self.__Lmax * self.m())
-					for j in range(qlen):
-						b_ki = b_k + (i * self.m())
-						b_qj = b_q + (j * self.m())
-						w_ijkq = self.__W[i,j,k,q]
-						wl2 = w_ijkq * self.__l2
-						wl2d = wl2 * self.__d
-						r_ijkq = r_ikq + j
-						y_ijkq = y_ikq + (j * self.m())
-						z_ijkq = z_ikq + (j * self.m())
-						for b_a in range(self.m()):
-							b_kia = b_ki + b_a
-							b_qja = b_qj + b_a
-							y_ijkqa = y_ijkq + b_a
-							z_ijkqa = z_ijkq + b_a
-
-							self.__bvm[r_ijkq, r_ijkq] += w_ijkq
-
-							self.__bvm[y_ijkqa, b_kia] -= wl2
-							self.__bvm[y_ijkqa, y_ijkqa] -= 3 * wl2d
-							self.__bvm[r_ijkq, b_kia] -= wl2d
-							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
-							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
-
-							self.__bvm[z_ijkqa, b_qja] += wl2
-							self.__bvm[z_ijkqa, z_ijkqa] -= 3 * wl2d
-							self.__bvm[r_ijkq, b_qja] -= wl2d
-							self.__bvm[z_ijkqa, r_ijkq] += 2 * wl2d
-							self.__bvm[z_ijkqa, b_qja] += 2 * wl2d
-
-							self.__bvm[y_ijkqa, b_qja] -= 2 * wl2
-							self.__bvm[y_ijkqa, y_ijkqa] -= 3 * wl2d
-							self.__bvm[r_ijkq, b_kia] -= wl2d
-							self.__bvm[y_ijkqa, r_ijkq] += 2 * wl2d
-							self.__bvm[y_ijkqa, b_kia] += 2 * wl2d
-
+		e2m = np.zeros
+		if intmode:
+			pass
+		else:
+			pass
 
 	def __calcNbNodes(self):
 		count = 0
@@ -584,13 +539,13 @@ class BVC:
 	def createW(self):
 
 		N=self.__N
-		self.__W=np.empty(shape=(self.__Lmax,self.__Lmax,N,N))
+		self.__W=np.zeros(shape=(self.__Lmax,self.__Lmax,N,N))
 
 		for k in range(N-1):
 			for q in range(k+1,N):
 				for i in range(len(self.__x[k])):
 					for j in range(len(self.__x[q])):
-						self.__W[i,j,k,q] = 1 if self.__x[k][i] == self.__x[q][j] else 0
+						self.__W[i,j,k,q] = 1. if self.__x[k][i] == self.__x[q][j] else 0.
 
 	def w(self, i, j, k, q):
 		return self.__W[i,j,k,q]
@@ -619,12 +574,12 @@ class BVC:
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
 			self.__addE0Coefficients()
-			print("\n\nBVM - After E0 applied\n", self.__bvm)
+			#print("\n\nBVM - After E0 applied\n", self.__bvm)
 			self.__addE1Coefficients()
-			print("\n\nBVM - After E1 applied\n", self.__bvm)
+			#print("\n\nBVM - After E1 applied\n", self.__bvm)
 			#self.__addE2Coefficients()
 
-			self.sophiesMethod()
+			#self.sophiesMethod()
 
 		else:
 			isize = self.get_NbIV()

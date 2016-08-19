@@ -20,7 +20,7 @@ __status__ = "Prototype"
 
 class Msa2Qubo:
 
-	def __init__(self, input, output, P, delta, l0, l1, l2, verbose):
+	def __init__(self, input, output, P, delta, l0, l1, l2, verbose=False):
 		self.data = []
 		self.input = input
 		self.output = output
@@ -78,7 +78,8 @@ class Msa2Qubo:
 		print()
 
 		# Print current state of variables
-		print(self.bvc)
+		if self.verbose:
+			print(self.bvc)
 
 		# Save settings file
 		print()
