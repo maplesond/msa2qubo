@@ -587,7 +587,7 @@ class BVC:
 			self.__lil = [0] * isize
 			self.ienergy = 0
 			self.__addE0Coefficients(intmode=True)
-			#self.__addE1Coefficients(intmode=True)
+			self.__addE1Coefficients(intmode=True)
 
 		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
