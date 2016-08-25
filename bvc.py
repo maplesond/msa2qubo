@@ -186,6 +186,9 @@ class BVC:
 			g_k += klen * self.p()
 		return gm
 
+	def bvm(self):
+		return self.__bvm
+
 	def W(self):
 		return self.__W
 
@@ -258,8 +261,8 @@ class BVC:
 
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
-		#return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
-		return self.get_NbPositioningVars() + self.get_NbGapVars()
+		return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
+		#return self.get_NbPositioningVars() + self.get_NbGapVars()
 
 	def get_gVarOffset(self, intmode=False):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
@@ -394,7 +397,8 @@ class BVC:
 				self.__lil[k] *= self.__l0
 			self.ienergy *= self.__l0
 		else:
-
+			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
+			e0bm = np.zeros((nbvars, nbvars))
 			x_k = 0
 			G_k = self.get_gVarOffset()
 			for k in range(self.__N):
@@ -418,14 +422,14 @@ class BVC:
 							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2 + 1))
 
 							# Quadratic parts
-							self.__bvm[x_kja1, x_kja2] += quad_scale
-							self.__bvm[x_kj1a1, x_kj1a2] += quad_scale
-							self.__bvm[x_k1a1, x_k1a2] += quad_scale
+							e0bm[x_kja1, x_kja2] += quad_scale
+							e0bm[x_kj1a1, x_kj1a2] += quad_scale
+							e0bm[x_k1a1, x_k1a2] += quad_scale
 
 							# Linear parts
 							if x_a1 == x_a2:
-								self.__bvm[x_kja1, x_kja2] += 2 * (2 ** x_a1)
-								self.__bvm[x_kj1a1, x_kj1a2] -= 2 * (2 ** x_a1)
+								e0bm[x_kja1, x_kja2] += 2 * (2 ** x_a1)
+								e0bm[x_kj1a1, x_kj1a2] -= 2 * (2 ** x_a1)
 
 					# g node
 					for G_a1 in range(self.p()):
@@ -438,36 +442,36 @@ class BVC:
 							quad_scale = (2 ** G_a1) ** 2 if G_a1 == G_a2 else (2 ** (G_a1 + G_a2 + 1))
 
 							# Quadratic parts
-							self.__bvm[g_kj1a1, g_kj1a2] += quad_scale
-							self.__bvm[g_k1a1, g_k1a2] += quad_scale
+							e0bm[g_kj1a1, g_kj1a2] += quad_scale
+							e0bm[g_k1a1, g_k1a2] += quad_scale
 
 							# Linear parts
 							if G_a1 == G_a2:
-								self.__bvm[g_kj1a1, g_kj1a2] += 2 * (2 ** G_a1)
+								e0bm[g_kj1a1, g_kj1a2] += 2 * (2 ** G_a1)
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
 						for x_a2 in range(self.m()):
 							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2))
-							self.__bvm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
+							e0bm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
 
 
 					# xG - coupled
 					for x_a in range(self.m()):
 						for G_a in range(x_a, self.p()):
 							quad_scale = (2 ** x_a) ** 2 if x_a == G_a else (2 ** (G_a + x_a))
-							self.__bvm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
-							self.__bvm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
-							self.__bvm[x_k + x_a, G_k + G_a] -= 2 * quad_scale
+							e0bm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
+							e0bm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
+							e0bm[x_k + x_a, G_k + G_a] -= 2 * quad_scale
 
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
 
-			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
 			for k in range(nbvars):
 				for j in range(k, nbvars):
-					self.__bvm[k, j] *= self.__l0
+					e0bm[k, j] *= self.__l0
 			self.energy *= self.__l0
+			return e0bm
 
 
 
@@ -490,6 +494,8 @@ class BVC:
 					self.__qim[k, j] *= self.__l1
 
 		else:
+			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
+			e1bm = np.zeros((nbvars,nbvars))
 			g_k = self.get_gVarOffset()
 			for k in range(self.__N):
 				L_k = len(self.__x[k])
@@ -500,8 +506,9 @@ class BVC:
 							g_kja1 = g_kj + a1
 							g_kja2 = g_kj + a2
 							quad_scale = (2 ** a1) ** 2 if a1 == a2 else (2 ** (a1 + a2 + 1))
-							self.__bvm[g_kja1, g_kja2] += self.__l1*quad_scale
+							e1bm[g_kja1, g_kja2] += self.__l1*quad_scale
 				g_k += L_k * self.p()
+			return e1bm
 
 	def __addE2Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E2"""
@@ -509,7 +516,102 @@ class BVC:
 		if intmode:
 			pass
 		else:
-			pass
+			delta = 1
+			m = self.m()
+			bRMatPos = self.get_rVarOffset()
+			bYMatPos = self.get_yVarOffset() # No need to transform R to binary as it only either (0,1)
+			# Since R is either 0,1 in the following loops need to take that into account...
+			bZMatPos = self.get_zVarOffset()
+			matDims = bZMatPos + self.get_NbRewardVars() * m
+			e2bm = np.zeros((matDims, matDims))
+			pbK = 0
+			pbQ = 0
+			posI = 0
+			posJ = 0
+			piK = 0
+			piQ = 0
+			x_k = 0
+			x_q = 0
+			for k in range(self.__N-1):
+			    pbQ = 0
+			    piQ = 0
+
+			    size_iq = 0
+			    size_bq = 0
+			    x_q = x_k + len(self.__x[k]) * m
+			    for q in range(k+1, self.__N):
+			        size_ii = 0
+			        size_bi = 0
+			        for i in range(len(self.__x[k])):
+
+			            x_ki = x_k + (i * m)
+
+			            size_ij = 0
+			            size_bj = 0
+			            for j in range(len(self.__x[q])):
+			                wl2 = self.w(i=i,j=j,k=k,q=q) * self.l2()
+			                x_qj = x_q + (j * m)
+
+			                i_idx = piK + size_iq + size_ii + size_ij
+			                b_idx = pbK + size_bq + size_bi + size_bj
+
+			                r_kqij = bRMatPos + i_idx
+
+			                e2bm[r_kqij][r_kqij] += wl2
+
+			                for bi in range(0,m):
+			                    for bj in range(0, m):
+
+
+			                        x_kia = x_ki + bi
+			                        x_qja = x_qj + bi
+
+			                        y_kqija = bYMatPos+b_idx + bi
+			                        y_kqijb = bYMatPos+b_idx + bj
+			                        z_kqija = bZMatPos+b_idx + bi
+			                        z_kqijb = bZMatPos+b_idx + bj
+
+
+			                        # -Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * -1. * 2**(bi+bj)
+			                        # 3d * Yijkq
+			                        if bi == bj:
+			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)
+			                        elif bi < bj:
+			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)*2
+			                        # d * Rijqk*Xki
+			                        e2bm[x_kia][r_kqij] += wl2 * 1.*delta * 2**(bi+bj)
+			                        # -2d * Yijkq*Rijkq
+			                        e2bm[r_kqij][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
+			                        # 2d * Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
+			                        # -4d * Yijkq*Xqj
+			                        e2bm[x_qja][y_kqijb] += wl2 * -4.*delta * 2**(bi+bj)
+			                        # Zijkq*Xqj
+			                        e2bm[x_qja][z_kqijb] += wl2 * 1. * 2**(bi+bj)
+			                        # -3d * Zijkq
+			                        if bi == bj:
+			                            e2bm[z_kqija][z_kqijb] += wl2 * -3.*delta * 2**(bi+bj)
+			                        elif bi < bj:
+			                            e2bm[z_kqija][z_kqijb] += wl2 * -3.*delta * 2**(bi+bj)*2
+			                        # -d * Rijkq*Xqj
+			                        e2bm[x_qja][r_kqij] += wl2 * -1.*delta * 2**(bi+bj)
+			                        # 2d * Zijqk*Xqj
+			                        e2bm[x_qja][z_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
+			                        # 2d * Zijkq*Rijkq
+			                        e2bm[r_kqij][z_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
+			                size_ij += 1
+			                size_bj += m
+			            size_ii += size_ij
+			            size_bi += size_bj
+			        size_iq += size_ii
+			        size_bq += size_bi
+			        x_q += len(self.__x[q]) * m
+			    pbK += size_bq
+			    piK += size_iq
+			    x_k += len(self.__x[k]) * m
+			return e2bm
+
 
 	def __calcNbNodes(self):
 		count = 0
@@ -573,11 +675,21 @@ class BVC:
 
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
-			self.__addE0Coefficients()
+			e0bm = self.__addE0Coefficients()
 			#print("\n\nBVM - After E0 applied\n", self.__bvm)
-			self.__addE1Coefficients()
+			e1bm = self.__addE1Coefficients()
 			#print("\n\nBVM - After E1 applied\n", self.__bvm)
-			#self.__addE2Coefficients()
+			e2bm = self.__addE2Coefficients()
+
+
+			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
+            self.__bvm = e2bm  # and comment this one
+			for i in range (self.get_rVarOffset()):
+				for j in range(self.get_rVarOffset()):
+					self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
+			#self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
+			#self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
+
 
 			#self.sophiesMethod()
 
