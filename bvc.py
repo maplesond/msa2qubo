@@ -485,7 +485,7 @@ class BVC:
 				L_k = len(self.__x[k])
 				for j in range(1, L_k):
 					g_kj = g_k + j
-					self.__qim[g_kj, g_kj] += 1
+					self.__qim[g_kj, g_kj] += self.__l1
 				g_k += L_k
 
 		else:
@@ -662,7 +662,7 @@ class BVC:
 		print("Optimal solution")
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
-	def createBVMatrix(self, intmode=False):
+	def createBVMatrix(self, intmode=False, verbose=False):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
 		if not intmode:
 			size = self.get_NbBV()
@@ -673,11 +673,16 @@ class BVC:
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
 			e0bm = self.__addE0Coefficients()
-			#print("\n\nBVM - After E0 applied\n", self.__bvm)
-			e1bm = self.__addE1Coefficients()
-			#print("\n\nBVM - After E1 applied\n", self.__bvm)
-			e2bm = self.__addE2Coefficients()
+			if verbose:
+				print("\n\nE0:\n", e0bm)
 
+			e1bm = self.__addE1Coefficients()
+			if verbose:
+				print("\n\nE1:\n", e1bm)
+
+			e2bm = self.__addE2Coefficients()
+			if verbose:
+				print("\n\nE2:\n", e2bm)
 
 			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
 			self.__bvm = e2bm  # and comment this one
@@ -687,6 +692,8 @@ class BVC:
 			#self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
 			#self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
 
+			if verbose:
+				print("\n\nBVM:\n", self.__bvm)
 
 			#self.sophiesMethod()
 
