@@ -8,6 +8,7 @@ binary numbers, which are then interpreted using qubo2msa.py to show the results
 ##Installation:
 
   - Install python3 with numpy (python_anaconda is recommended)
+  - Add biopython to your python installation
   - (Optional) Install qOp and add the bin directory to your PATH.
   - (Optional) Install gurobi for integer quadratic programming option.
 
