@@ -488,11 +488,6 @@ class BVC:
 					self.__qim[g_kj, g_kj] += 1
 				g_k += L_k
 
-			nbvars = self.get_NbPositioningVars(intmode=True) + self.get_NbGapVars(intmode=True)
-			for k in range(self.get_NbPositioningVars(intmode=True)+1,nbvars):
-				for j in range(k, nbvars):
-					self.__qim[k, j] *= self.__l1
-
 		else:
 			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
 			e1bm = np.zeros((nbvars,nbvars))
