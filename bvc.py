@@ -549,7 +549,8 @@ class BVC:
 			            size_ij = 0
 			            size_bj = 0
 			            for j in range(len(self.__x[q])):
-			                wl2 = self.w(i=i,j=j,k=k,q=q) * self.l2()
+			                Wijkq = self.w(i=i,j=j,k=k,q=q)
+			                wl2 = Wijkq * self.l2()
 			                x_qj = x_q + (j * m)
 
 			                i_idx = piK + size_iq + size_ii + size_ij
@@ -557,7 +558,8 @@ class BVC:
 
 			                r_kqij = bRMatPos + i_idx
 
-			                e2bm[r_kqij][r_kqij] += wl2
+			                # - Wijkq*Rijkq
+			                e2bm[r_kqij][r_kqij] += -Wijkq
 
 			                for bi in range(0,m):
 			                    for bj in range(0, m):
@@ -572,8 +574,8 @@ class BVC:
 			                        z_kqijb = bZMatPos+b_idx + bj
 
 
-			                        # -Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * -1. * 2**(bi+bj)
+			                        # Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * 1. * 2**(bi+bj)
 			                        # 3d * Yijkq
 			                        if bi == bj:
 			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)
@@ -583,10 +585,10 @@ class BVC:
 			                        e2bm[x_kia][r_kqij] += wl2 * 1.*delta * 2**(bi+bj)
 			                        # -2d * Yijkq*Rijkq
 			                        e2bm[r_kqij][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
-			                        # 2d * Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
-			                        # -4d * Yijkq*Xqj
-			                        e2bm[x_qja][y_kqijb] += wl2 * -4.*delta * 2**(bi+bj)
+			                        # -2d * Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
+			                        # -2 * Yijkq*Xqj
+			                        e2bm[x_qja][y_kqijb] += wl2 * -2. * 2**(bi+bj)
 			                        # Zijkq*Xqj
 			                        e2bm[x_qja][z_kqijb] += wl2 * 1. * 2**(bi+bj)
 			                        # -3d * Zijkq
