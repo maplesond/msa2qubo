@@ -683,7 +683,7 @@ class BVC:
 
 
 			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
-            self.__bvm = e2bm  # and comment this one
+			self.__bvm = e2bm  # and comment this one
 			for i in range (self.get_rVarOffset()):
 				for j in range(self.get_rVarOffset()):
 					self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
