@@ -95,12 +95,14 @@ class Msa2Qubo:
 		# print (m)
 		print(" done")
 
-		self.bvc.createBVMatrix(intmode=True)
-		self.bvc.printIntegerCoefficients()
+		self.bvc.createBVMatrix(intmode=True, verbose=self.verbose)
+
+		if self.verbose:
+			self.bvc.printIntegerCoefficients()
 
 		print("Creating matrix of coefficients of binary variables ...", end="")
 		sys.stdout.flush()
-		self.bvc.createBVMatrix()
+		self.bvc.createBVMatrix(verbose=self.verbose)
 		print(" done")
 		print("Number of active binary variables:", self.bvc.calcActiveBVs())
 		self.active = self.bvc.active

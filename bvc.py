@@ -487,13 +487,8 @@ class BVC:
 				L_k = len(self.__x[k])
 				for j in range(1, L_k):
 					g_kj = g_k + j
-					self.__qim[g_kj, g_kj] += 1
+					self.__qim[g_kj, g_kj] += self.__l1
 				g_k += L_k
-
-			nbvars = self.get_NbPositioningVars(intmode=True) + self.get_NbGapVars(intmode=True)
-			for k in range(self.get_NbPositioningVars(intmode=True)+1,nbvars):
-				for j in range(k, nbvars):
-					self.__qim[k, j] *= self.__l1
 
 		else:
 			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
@@ -551,7 +546,8 @@ class BVC:
 			            size_ij = 0
 			            size_bj = 0
 			            for j in range(len(self.__x[q])):
-			                wl2 = self.w(i=i,j=j,k=k,q=q) * self.l2()
+			                Wijkq = self.w(i=i,j=j,k=k,q=q)
+			                wl2 = Wijkq * self.l2()
 			                x_qj = x_q + (j * m)
 
 			                i_idx = piK + size_iq + size_ii + size_ij
@@ -559,7 +555,8 @@ class BVC:
 
 			                r_kqij = bRMatPos + i_idx
 
-			                e2bm[r_kqij][r_kqij] += wl2
+			                # - Wijkq*Rijkq
+			                e2bm[r_kqij][r_kqij] += -Wijkq
 
 			                for bi in range(0,m):
 			                    for bj in range(0, m):
@@ -574,8 +571,8 @@ class BVC:
 			                        z_kqijb = bZMatPos+b_idx + bj
 
 
-			                        # -Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * -1. * 2**(bi+bj)
+			                        # Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * 1. * 2**(bi+bj)
 			                        # 3d * Yijkq
 			                        if bi == bj:
 			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)
@@ -585,10 +582,10 @@ class BVC:
 			                        e2bm[x_kia][r_kqij] += wl2 * 1.*delta * 2**(bi+bj)
 			                        # -2d * Yijkq*Rijkq
 			                        e2bm[r_kqij][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
-			                        # 2d * Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
-			                        # -4d * Yijkq*Xqj
-			                        e2bm[x_qja][y_kqijb] += wl2 * -4.*delta * 2**(bi+bj)
+			                        # -2d * Yijkq*Xki
+			                        e2bm[x_kia][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
+			                        # -2 * Yijkq*Xqj
+			                        e2bm[x_qja][y_kqijb] += wl2 * -2. * 2**(bi+bj)
 			                        # Zijkq*Xqj
 			                        e2bm[x_qja][z_kqijb] += wl2 * 1. * 2**(bi+bj)
 			                        # -3d * Zijkq
@@ -667,7 +664,7 @@ class BVC:
 		print("Optimal solution")
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
-	def createBVMatrix(self, intmode=False):
+	def createBVMatrix(self, intmode=False, verbose=False):
 		"""Creates the symmetric binary variable matrix of coefficients from the energy function"""
 		if not intmode:
 			size = self.get_NbBV()
@@ -678,10 +675,24 @@ class BVC:
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
 			e0bm = self.__addE0Coefficients()
-			#print("\n\nBVM - After E0 applied\n", self.__bvm)
+			if verbose:
+				print("\n\nE0:\n", e0bm)
+
 			e1bm = self.__addE1Coefficients()
-			#print("\n\nBVM - After E1 applied\n", self.__bvm)
+			if verbose:
+				print("\n\nE1:\n", e1bm)
+
 			e2bm = self.__addE2Coefficients()
+			if verbose:
+				print("\n\nE2:\n", e2bm)
+
+			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
+			self.__bvm = e2bm  # and comment this one
+			for i in range (self.get_rVarOffset()):
+				for j in range(self.get_rVarOffset()):
+					self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
+			#self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
+			#self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
 
 			if self.__reduced:
 				print("REDUCED MODE!")
