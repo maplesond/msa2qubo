@@ -42,6 +42,7 @@ def main():
 	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
 						help="The weighting to apply to reward matches (must be greater than 1.0)")
 	parser.add_argument("--do_iqp", action='store_true', default="False", help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
+	parser.add_argument("-r", "--reduced", action='store_true', default=False, help="Run in reduced mode, only E0 and E1 will be active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
@@ -59,7 +60,7 @@ def main():
 	print()
 
 	start1 = time.time()
-	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting)
+	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=2.0, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting, reduced=args.reduced)
 	m2q.run()
 	end1 = time.time()
 	print("Time taken to create QUBO file (s): ", "{0:.2f}".format(round(end1 - start1,2)))

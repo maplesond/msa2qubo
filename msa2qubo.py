@@ -20,7 +20,7 @@ __status__ = "Prototype"
 
 class Msa2Qubo:
 
-	def __init__(self, input, output, P, delta, l0, l1, l2, verbose=False):
+	def __init__(self, input, output, P, delta, l0, l1, l2, reduced=False, verbose=False):
 		self.data = []
 		self.input = input
 		self.output = output
@@ -29,6 +29,7 @@ class Msa2Qubo:
 		self.l0 = l0
 		self.l1 = l1
 		self.l2 = l2
+		self.reduced = reduced
 		self.verbose = verbose
 
 		self.energy = 0.0
@@ -67,7 +68,7 @@ class Msa2Qubo:
 		print("Input:")
 
 		# Collect variables
-		self.bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2)
+		self.bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2, reduced=self.reduced)
 		for r in records:
 			self.bvc.add_record(r)
 
@@ -133,6 +134,8 @@ def main():
 						help="The weighting to apply to gap penalties")
 	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
 						help="The weighting to apply to reward matches (must be greater than 1.0)")
+	parser.add_argument("-r", "--reduced", action='store_true', default=False,
+						help="Run in reduced mode, only E0 and E1 active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
@@ -156,7 +159,8 @@ def main():
 		print("-P must be >= 1")
 		exit(1)
 
-	m2q = Msa2Qubo(input=args.input, output=args.output, P=args.P, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting, verbose=args.verbose)
+	m2q = Msa2Qubo(input=args.input, output=args.output, P=args.P, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting,
+			reduced=args.reduced, verbose=args.verbose)
 	m2q.run()
 
 

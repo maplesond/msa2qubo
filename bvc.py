@@ -30,7 +30,7 @@ class BVC:
 	matrix containing binary variable coefficients."""
 
 
-	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0, settings_file=None):
+	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0, reduced=False, settings_file=None):
 		self.data = []
 
 		if settings_file == None:
@@ -39,6 +39,7 @@ class BVC:
 			self.__l0 = l0
 			self.__l1 = l1
 			self.__l2 = l2
+			self.__reduced = reduced
 			self.__N = 0
 			self.__Lmax = 0
 			self.__K = 0
@@ -261,7 +262,8 @@ class BVC:
 
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
-		return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
+		return self.__bvm.shape[0]
+		#return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
 		#return self.get_NbPositioningVars() + self.get_NbGapVars()
 
 	def get_gVarOffset(self, intmode=False):
@@ -681,15 +683,14 @@ class BVC:
 			#print("\n\nBVM - After E1 applied\n", self.__bvm)
 			e2bm = self.__addE2Coefficients()
 
-
-			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
-            self.__bvm = e2bm  # and comment this one
-			for i in range (self.get_rVarOffset()):
-				for j in range(self.get_rVarOffset()):
-					self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
-			#self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
-			#self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
-
+			if self.__reduced:
+				print("REDUCED MODE!")
+				self.__bvm = e0bm+e1bm
+			else:
+				self.__bvm = e2bm  # and comment this one
+				for i in range (self.get_rVarOffset()):
+					for j in range(self.get_rVarOffset()):
+						self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
 
 			#self.sophiesMethod()
 
