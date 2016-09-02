@@ -4,6 +4,7 @@
 
 import math
 import numpy as np
+from matplotlib import pyplot as plt
 
 try:
     import gurobipy
@@ -355,6 +356,42 @@ class BVC:
 		print()
 
 
+	def plotMatrix(self, outpath):
+
+		matDims = self.get_NbBV()
+
+		G = np.zeros((matDims,matDims,3))
+		G[self.__bvm!=0] = [0,0,0]
+		G[self.__bvm==0] = [1,1,1]
+		plt.figure(figsize=(10,10))
+
+		#plt.annotate(s="G", xy=((m2q.bvc.get_NbPositioningVars())*0.5,-1))
+		#plt.annotate(s="G", xy=(matDims,(m2q.bvc.get_NbPositioningVars())*0.5))
+		plt.axvline(self.get_NbPositioningVars()-0.5)
+		plt.axhline(self.get_NbPositioningVars()-0.5)
+
+		plt.axvline(self.get_NbPositioningVars()+self.get_NbGapVars()-0.5)
+		plt.axhline(self.get_NbPositioningVars()+self.get_NbGapVars()-0.5)
+
+		plt.annotate(s="R", xy=((self.get_rVarOffset()+self.get_yVarOffset())*0.5,-1))
+		plt.annotate(s="R", xy=(matDims,(self.get_rVarOffset()+self.get_yVarOffset())*0.5))
+		plt.axvline(self.get_rVarOffset()-0.5)
+		plt.axhline(self.get_rVarOffset()-0.5)
+
+		plt.annotate(s="Y", xy=((self.get_yVarOffset()+self.get_zVarOffset())*0.5,-1))
+		plt.annotate(s="Y", xy=(matDims,(self.get_yVarOffset()+self.get_zVarOffset())*0.5))
+		plt.axvline(self.get_yVarOffset()-0.5)
+		plt.axhline(self.get_yVarOffset()-0.5)
+
+		plt.annotate(s="Z", xy=((self.get_zVarOffset()+matDims)*0.5,-1))
+		plt.annotate(s="Z", xy=(matDims+0.11,(self.get_zVarOffset()+matDims)*0.5))
+		plt.axvline(self.get_zVarOffset()-0.5)
+		plt.axhline(self.get_zVarOffset()-0.5)
+
+		plt.imshow(G, cmap='Greys', interpolation='nearest')
+		plt.savefig(outpath)
+
+
 	def __addE0Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E0"""
 
@@ -474,7 +511,6 @@ class BVC:
 					e0bm[k, j] *= self.__l0
 			self.energy *= self.__l0
 			return e0bm
-
 
 
 
