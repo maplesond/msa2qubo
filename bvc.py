@@ -44,6 +44,7 @@ class BVC:
 			self.__K = 0
 
 			self.__x = []
+			self.__seqs = []
 		else:
 			handle = open(settings_file, "r");
 
@@ -64,6 +65,7 @@ class BVC:
 			parts = handle.readline().split("\t")
 			self.__K = int(parts[1])
 			self.__x = []
+			self.seqs = []
 
 			for line in handle:
 				parts = line.split("\t")
@@ -120,6 +122,7 @@ class BVC:
 		self.__Lmax = 1 << (self.__Lmax - 1).bit_length()
 
 		self.__x.append([0] * l)  # Add a list the size of the this sequence to the 'x' list
+		self.__seqs.append(record.seq)
 		self.__K += l
 		self.__N += 1
 
@@ -366,8 +369,10 @@ class BVC:
 		matDims = self.get_NbBV()
 
 		G = np.zeros((matDims, matDims, 3))
-		G[self.__bvm != 0] = [0, 0, 0]
-		G[self.__bvm == 0] = [1, 1, 1]
+		G=np.abs(self.__bvm)+1
+		G = np.log2(G)
+		#G[self.__bvm != 0] = [0, 0, 0]
+		#G[self.__bvm == 0] = [1, 1, 1]
 		plt.figure(figsize=(10, 10))
 
 		# plt.annotate(s="G", xy=((m2q.bvc.get_NbPositioningVars())*0.5,-1))
@@ -556,7 +561,7 @@ class BVC:
 			bYMatPos = self.get_yVarOffset()  # No need to transform R to binary as it only either (0,1)
 			# Since R is either 0,1 in the following loops need to take that into account...
 			bZMatPos = self.get_zVarOffset()
-			matDims = bZMatPos + self.get_NbRewardVars() * m
+			matDims = self.get_zVarOffset() + self.get_NbZVars()
 			e2bm = np.zeros((matDims, matDims))
 			pbK = 0
 			pbQ = 0
@@ -654,17 +659,19 @@ class BVC:
 		return count
 
 	def __calcNbCouplers(self):
+		nbv = self.get_NbBV()
 		count = 0
-		for i in range(self.get_NbBV() - 1):
-			for j in range(i + 1, self.get_NbBV()):
+		for i in range(nbv - 1):
+			for j in range(i + 1, nbv):
 				if self.__bvm[i, j] != 0.0:
 					count += 1
 		return count
 
 	def calcActiveBVs(self):
-		self.active = [False] * self.get_NbBV()
-		for i in range(self.get_NbBV()):
-			for j in range(i, self.get_NbBV()):
+		nbv = self.get_NbBV()
+		self.active = [False] * nbv
+		for i in range(nbv):
+			for j in range(i, nbv):
 				if self.__bvm[i, j] != 0.0:
 					self.active[i] = True
 					break
@@ -680,7 +687,7 @@ class BVC:
 			for q in range(k + 1, N):
 				for i in range(len(self.__x[k])):
 					for j in range(len(self.__x[q])):
-						self.__W[i, j, k, q] = 1. if self.__x[k][i] == self.__x[q][j] else 0.
+						self.__W[i, j, k, q] = 1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.
 
 	def w(self, i, j, k, q):
 		return self.__W[i, j, k, q]
@@ -708,6 +715,7 @@ class BVC:
 
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
+
 			e0bm = self.__addE0Coefficients()
 			if verbose:
 				print("\n\nE0:\n", e0bm)
@@ -719,6 +727,8 @@ class BVC:
 			e2bm = self.__addE2Coefficients()
 			if verbose:
 				print("\n\nE2:\n", e2bm)
+				print("\n\nW:\n", self.__W)
+
 
 			# self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
 			self.__bvm = e2bm  # and comment this one
@@ -736,8 +746,6 @@ class BVC:
 				for i in range(self.get_rVarOffset()):
 					for j in range(self.get_rVarOffset()):
 						self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
-
-					# self.sophiesMethod()
 
 		else:
 			isize = self.get_NbIV()
