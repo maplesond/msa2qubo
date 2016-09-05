@@ -4,17 +4,17 @@
 
 import math
 import numpy as np
+from matplotlib import pyplot as plt
 
 try:
-    import gurobipy
+	import gurobipy
 except ImportError:
 	pass
-
 
 __author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
 __copyright__ = "Copyright 2016, Quantum MSA"
 __credits__ = ["Dan Mapleson", "Luis Yanes", "Katie Barr",
-                    "Sophie Kirkwood", "Tim Stitt"]
+			   "Sophie Kirkwood", "Tim Stitt"]
 __license__ = "GPLv3"
 __version__ = "0.0.1"
 __maintainer__ = "Dan Mapleson,"
@@ -28,7 +28,6 @@ class BVC:
 	To use the class initialise, and optionally override default parameters representing the max gap size and weightings,
 	then add BioPython sequence records that will represent the MSA.  Finally call createBVMatrix to create the symettric
 	matrix containing binary variable coefficients."""
-
 
 	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0, reduced=False, settings_file=None):
 		self.data = []
@@ -45,6 +44,7 @@ class BVC:
 			self.__K = 0
 
 			self.__x = []
+			self.__seqs = []
 		else:
 			handle = open(settings_file, "r");
 
@@ -65,13 +65,13 @@ class BVC:
 			parts = handle.readline().split("\t")
 			self.__K = int(parts[1])
 			self.__x = []
+			self.seqs = []
 
 			for line in handle:
 				parts = line.split("\t")
 				self.__x.append([0] * int(parts[1]))
 
 			handle.close()
-
 
 		self.__W = np.zeros((0, 0))
 
@@ -87,32 +87,42 @@ class BVC:
 		self.nb_active = 0
 
 	def __str__(self):
-		return 	"N=" + str(self.__N) + "\tNumber of sequences\n" \
-				"Lmax=" + str(self.__Lmax) + "\tLength of longest sequence (rounded up to nearest ^2)\n" \
-				"K=" + str(self.__K) + "\tTotal number of characters\n" \
-				"M=" + str(self.M()) + "\tLength of each row in solution space\n" \
-				"m=" + str(self.m()) + "\tNumber of binary variables required to represent each position in solution space\n" \
-				"P=" + str(self.__P) + "\tMaximum gap size\n" \
-				"p=" + str(self.p()) + "\tNumber of binary variables required to represent each gap\n\n" \
-				"l0=" + str(self.__l0) + "\tPosition weighting\n" \
-				"l1=" + str(self.__l1) + "\tGap weighting\n" \
-				"l2=" + str(self.__l2) + "\tReward weighting\n" \
-				"d=" + str(self.__d) + "\tScaling factor when substituting products of 3BVs to 2BVs\n\n" \
-				"Solution space will contain " + str(self.calc_solutionSpaceSize()) + " cells\n\n" \
-				"Bounds on total # Binary Variables required: " + str(self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
-				"# Binary Variables required for positioning: " + str(self.get_NbPositioningVars()) + "\n" \
-				"# Binary Variables required for gaps: " + str(self.get_NbGapVars()) + "\n" \
-				"Max Binary Variables required for rewards: " + str(self.get_NbRewardVars()) + "\n" \
-				"Max Binary Variables required for y and z (each): " + str(self.get_NbYVars()) + "\n\n"
+		return "N=" + str(self.__N) + "\tNumber of sequences\n" \
+									  "Lmax=" + str(
+			self.__Lmax) + "\tLength of longest sequence (rounded up to nearest ^2)\n" \
+						   "K=" + str(self.__K) + "\tTotal number of characters\n" \
+												  "M=" + str(self.M()) + "\tLength of each row in solution space\n" \
+																		 "m=" + str(
+			self.m()) + "\tNumber of binary variables required to represent each position in solution space\n" \
+						"P=" + str(self.__P) + "\tMaximum gap size\n" \
+											   "p=" + str(
+			self.p()) + "\tNumber of binary variables required to represent each gap\n\n" \
+						"l0=" + str(self.__l0) + "\tPosition weighting\n" \
+												 "l1=" + str(self.__l1) + "\tGap weighting\n" \
+																		  "l2=" + str(
+			self.__l2) + "\tReward weighting\n" \
+						 "d=" + str(self.__d) + "\tScaling factor when substituting products of 3BVs to 2BVs\n\n" \
+												"Solution space will contain " + str(
+			self.calc_solutionSpaceSize()) + " cells\n\n" \
+											 "Bounds on total # Binary Variables required: " + str(
+			self.calc_minBV()) + "-" + str(self.calc_maxBV()) + "\n" \
+																"# Binary Variables required for positioning: " + str(
+			self.get_NbPositioningVars()) + "\n" \
+											"# Binary Variables required for gaps: " + str(self.get_NbGapVars()) + "\n" \
+																												   "Max Binary Variables required for rewards: " + str(
+			self.get_NbRewardVars()) + "\n" \
+									   "Max Binary Variables required for y and z (each): " + str(
+			self.get_NbYVars()) + "\n\n"
 
 	def add_record(self, record):
 		"""Adds a biopython record and updates the state of this object accordingly"""
 		l = len(record.seq)
 		self.__Lmax = max(self.__Lmax, l)
 		# ensure Lmax is power of 2
-		self.__Lmax = 1<<(self.__Lmax - 1).bit_length()
+		self.__Lmax = 1 << (self.__Lmax - 1).bit_length()
 
 		self.__x.append([0] * l)  # Add a list the size of the this sequence to the 'x' list
+		self.__seqs.append(record.seq)
 		self.__K += l
 		self.__N += 1
 
@@ -137,22 +147,21 @@ class BVC:
 		with open(filename) as f:
 			f.readline()
 			s = f.readline().strip()
-			#index = 0
+			# index = 0
 			for c in s.strip():
-				#while index < len(active) and active[index] == False:
+				# while index < len(active) and active[index] == False:
 				#	index += 1
 				#	self.__bvs.append(0)
 				self.__bvs.append(int(c))
-				#index += 1
+			# index += 1
 
 	def get_energy_from_file(self, filename):
 		with open(filename) as f:
-			f.readline()	# Number of bits
-			f.readline()	# Solution
-			s = f.readline().strip()	# Energy
+			f.readline()  # Number of bits
+			f.readline()  # Solution
+			s = f.readline().strip()  # Energy
 			parts = s.split()
 			return float(parts[0])
-
 
 	def make_msa(self):
 		msa = []
@@ -162,7 +171,7 @@ class BVC:
 			sa = []
 			for j in range(L_k):
 				b_kj = b_k + (j * self.m())
-				#pos = j # Ensures minimal offset to ensure characters don't stack up on each other (handles the -1 in E0).
+				# pos = j # Ensures minimal offset to ensure characters don't stack up on each other (handles the -1 in E0).
 				pos = 0
 				for a in range(self.m()):
 					pos += 2 ** a if self.__bvs[b_kj + a] == 1 else 0
@@ -208,7 +217,7 @@ class BVC:
 	def M(self):
 		"""Returns the length of each row in solution space"""
 		min_m = 2 * self.__Lmax + 1
-		return 1<<(min_m - 1).bit_length()
+		return 1 << (min_m - 1).bit_length()
 
 	def Lmax(self):
 		return self.__Lmax
@@ -254,7 +263,7 @@ class BVC:
 		return self.__bvs[0:self.get_NbPositioningVars()]
 
 	def getGapSolution(self):
-		return self.__bvs[self.get_gVarOffset():self.get_gVarOffset()+self.get_NbGapVars()]
+		return self.__bvs[self.get_gVarOffset():self.get_gVarOffset() + self.get_NbGapVars()]
 
 	def calc_solutionSpaceSize(self):
 		"""Size of the solution space"""
@@ -274,8 +283,9 @@ class BVC:
 	def get_NbBV(self):
 		"""Return the actual number of binary variables required for this problem"""
 		return self.__bvm.shape[0]
-		#return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
-		#return self.get_NbPositioningVars() + self.get_NbGapVars()
+
+	# return self.get_NbPositioningVars() + self.get_NbGapVars() + self.get_NbRewardVars() + self.get_NbYVars() + self.get_NbZVars()
+	# return self.get_NbPositioningVars() + self.get_NbGapVars()
 
 	def get_gVarOffset(self, intmode=False):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a gap"""
@@ -365,6 +375,42 @@ class BVC:
 		print(self.ienergy)
 		print()
 
+	def plotMatrix(self, outpath):
+
+		matDims = self.get_NbBV()
+
+		G = np.zeros((matDims, matDims, 3))
+		G=np.abs(self.__bvm)+1
+		G = np.log2(G)
+		#G[self.__bvm != 0] = [0, 0, 0]
+		#G[self.__bvm == 0] = [1, 1, 1]
+		plt.figure(figsize=(10, 10))
+
+		# plt.annotate(s="G", xy=((m2q.bvc.get_NbPositioningVars())*0.5,-1))
+		# plt.annotate(s="G", xy=(matDims,(m2q.bvc.get_NbPositioningVars())*0.5))
+		plt.axvline(self.get_NbPositioningVars() - 0.5)
+		plt.axhline(self.get_NbPositioningVars() - 0.5)
+
+		plt.axvline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
+		plt.axhline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
+
+		plt.annotate(s="R", xy=((self.get_rVarOffset() + self.get_yVarOffset()) * 0.5, -1))
+		plt.annotate(s="R", xy=(matDims, (self.get_rVarOffset() + self.get_yVarOffset()) * 0.5))
+		plt.axvline(self.get_rVarOffset() - 0.5)
+		plt.axhline(self.get_rVarOffset() - 0.5)
+
+		plt.annotate(s="Y", xy=((self.get_yVarOffset() + self.get_zVarOffset()) * 0.5, -1))
+		plt.annotate(s="Y", xy=(matDims, (self.get_yVarOffset() + self.get_zVarOffset()) * 0.5))
+		plt.axvline(self.get_yVarOffset() - 0.5)
+		plt.axhline(self.get_yVarOffset() - 0.5)
+
+		plt.annotate(s="Z", xy=((self.get_zVarOffset() + matDims) * 0.5, -1))
+		plt.annotate(s="Z", xy=(matDims + 0.11, (self.get_zVarOffset() + matDims) * 0.5))
+		plt.axvline(self.get_zVarOffset() - 0.5)
+		plt.axhline(self.get_zVarOffset() - 0.5)
+
+		plt.imshow(G, cmap='Greys', interpolation='nearest')
+		plt.savefig(outpath)
 
 	def __addE0Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E0"""
@@ -380,11 +426,11 @@ class BVC:
 					G_kj1 = G_k + j + 1
 
 					# Nodes
-					self.__qim[x_kj, x_kj] += 1		# Squared
-					self.__qim[x_kj1, x_kj1] += 1	# Squared
-					self.__qim[G_kj1, G_kj1] += 1	# Squared
-					self.__qim[x_k, x_k] += 1		# Squared
-					self.__qim[G_k, G_k] += 1		# Squared
+					self.__qim[x_kj, x_kj] += 1  # Squared
+					self.__qim[x_kj1, x_kj1] += 1  # Squared
+					self.__qim[G_kj1, G_kj1] += 1  # Squared
+					self.__qim[x_k, x_k] += 1  # Squared
+					self.__qim[G_k, G_k] += 1  # Squared
 
 					# Couplers
 					self.__qim[x_kj, x_kj1] += -2
@@ -468,7 +514,6 @@ class BVC:
 							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2))
 							e0bm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
 
-
 					# xG - coupled
 					for x_a in range(self.m()):
 						for G_a in range(x_a, self.p()):
@@ -486,9 +531,6 @@ class BVC:
 			self.energy *= self.__l0
 			return e0bm
 
-
-
-
 	def __addE1Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E1"""
 
@@ -503,7 +545,7 @@ class BVC:
 
 		else:
 			nbvars = self.get_NbPositioningVars() + self.get_NbGapVars()
-			e1bm = np.zeros((nbvars,nbvars))
+			e1bm = np.zeros((nbvars, nbvars))
 			g_k = self.get_gVarOffset()
 			for k in range(self.__N):
 				L_k = len(self.__x[k])
@@ -514,7 +556,7 @@ class BVC:
 							g_kja1 = g_kj + a1
 							g_kja2 = g_kj + a2
 							quad_scale = (2 ** a1) ** 2 if a1 == a2 else (2 ** (a1 + a2 + 1))
-							e1bm[g_kja1, g_kja2] += self.__l1*quad_scale
+							e1bm[g_kja1, g_kja2] += self.__l1 * quad_scale
 				g_k += L_k * self.p()
 			return e1bm
 
@@ -527,10 +569,10 @@ class BVC:
 			delta = 1
 			m = self.m()
 			bRMatPos = self.get_rVarOffset()
-			bYMatPos = self.get_yVarOffset() # No need to transform R to binary as it only either (0,1)
+			bYMatPos = self.get_yVarOffset()  # No need to transform R to binary as it only either (0,1)
 			# Since R is either 0,1 in the following loops need to take that into account...
 			bZMatPos = self.get_zVarOffset()
-			matDims = bZMatPos + self.get_NbRewardVars() * m
+			matDims = self.get_zVarOffset() + self.get_NbZVars()
 			e2bm = np.zeros((matDims, matDims))
 			pbK = 0
 			pbQ = 0
@@ -540,88 +582,85 @@ class BVC:
 			piQ = 0
 			x_k = 0
 			x_q = 0
-			for k in range(self.__N-1):
-			    pbQ = 0
-			    piQ = 0
+			for k in range(self.__N - 1):
+				pbQ = 0
+				piQ = 0
 
-			    size_iq = 0
-			    size_bq = 0
-			    x_q = x_k + len(self.__x[k]) * m
-			    for q in range(k+1, self.__N):
-			        size_ii = 0
-			        size_bi = 0
-			        for i in range(len(self.__x[k])):
+				size_iq = 0
+				size_bq = 0
+				x_q = x_k + len(self.__x[k]) * m
+				for q in range(k + 1, self.__N):
+					size_ii = 0
+					size_bi = 0
+					for i in range(len(self.__x[k])):
 
-			            x_ki = x_k + (i * m)
+						x_ki = x_k + (i * m)
 
-			            size_ij = 0
-			            size_bj = 0
-			            for j in range(len(self.__x[q])):
-			                Wijkq = self.w(i=i,j=j,k=k,q=q)
-			                wl2 = Wijkq * self.l2()
-			                x_qj = x_q + (j * m)
+						size_ij = 0
+						size_bj = 0
+						for j in range(len(self.__x[q])):
+							Wijkq = self.w(i=i, j=j, k=k, q=q)
+							wl2 = Wijkq * self.l2()
+							x_qj = x_q + (j * m)
 
-			                i_idx = piK + size_iq + size_ii + size_ij
-			                b_idx = pbK + size_bq + size_bi + size_bj
+							i_idx = piK + size_iq + size_ii + size_ij
+							b_idx = pbK + size_bq + size_bi + size_bj
 
-			                r_kqij = bRMatPos + i_idx
+							r_kqij = bRMatPos + i_idx
 
-			                # - Wijkq*Rijkq
-			                e2bm[r_kqij][r_kqij] += -Wijkq
+							# - Wijkq*Rijkq
+							e2bm[r_kqij][r_kqij] += -Wijkq
 
-			                for bi in range(0,m):
-			                    for bj in range(0, m):
+							for bi in range(0, m):
+								for bj in range(0, m):
 
+									x_kia = x_ki + bi
+									x_qja = x_qj + bi
 
-			                        x_kia = x_ki + bi
-			                        x_qja = x_qj + bi
+									y_kqija = bYMatPos + b_idx + bi
+									y_kqijb = bYMatPos + b_idx + bj
+									z_kqija = bZMatPos + b_idx + bi
+									z_kqijb = bZMatPos + b_idx + bj
 
-			                        y_kqija = bYMatPos+b_idx + bi
-			                        y_kqijb = bYMatPos+b_idx + bj
-			                        z_kqija = bZMatPos+b_idx + bi
-			                        z_kqijb = bZMatPos+b_idx + bj
-
-
-			                        # Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * 1. * 2**(bi+bj)
-			                        # 3d * Yijkq
-			                        if bi == bj:
-			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)
-			                        elif bi < bj:
-			                            e2bm[y_kqija][y_kqijb] += wl2 * 3.*delta * 2**(bi+bj)*2
-			                        # d * Rijqk*Xki
-			                        e2bm[x_kia][r_kqij] += wl2 * 1.*delta * 2**(bi+bj)
-			                        # -2d * Yijkq*Rijkq
-			                        e2bm[r_kqij][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
-			                        # -2d * Yijkq*Xki
-			                        e2bm[x_kia][y_kqijb] += wl2 * -2.*delta * 2**(bi+bj)
-			                        # -2 * Yijkq*Xqj
-			                        e2bm[x_qja][y_kqijb] += wl2 * -2. * 2**(bi+bj)
-			                        # Zijkq*Xqj
-			                        e2bm[x_qja][z_kqijb] += wl2 * 1. * 2**(bi+bj)
-			                        # -3d * Zijkq
-			                        if bi == bj:
-			                            e2bm[z_kqija][z_kqijb] += wl2 * -3.*delta * 2**(bi+bj)
-			                        elif bi < bj:
-			                            e2bm[z_kqija][z_kqijb] += wl2 * -3.*delta * 2**(bi+bj)*2
-			                        # -d * Rijkq*Xqj
-			                        e2bm[x_qja][r_kqij] += wl2 * -1.*delta * 2**(bi+bj)
-			                        # 2d * Zijqk*Xqj
-			                        e2bm[x_qja][z_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
-			                        # 2d * Zijkq*Rijkq
-			                        e2bm[r_kqij][z_kqijb] += wl2 * 2.*delta * 2**(bi+bj)
-			                size_ij += 1
-			                size_bj += m
-			            size_ii += size_ij
-			            size_bi += size_bj
-			        size_iq += size_ii
-			        size_bq += size_bi
-			        x_q += len(self.__x[q]) * m
-			    pbK += size_bq
-			    piK += size_iq
-			    x_k += len(self.__x[k]) * m
+									# Yijkq*Xki
+									e2bm[x_kia][y_kqijb] += wl2 * 1. * 2 ** (bi + bj)
+									# 3d * Yijkq
+									if bi == bj:
+										e2bm[y_kqija][y_kqijb] += wl2 * 3. * delta * 2 ** (bi + bj)
+									elif bi < bj:
+										e2bm[y_kqija][y_kqijb] += wl2 * 3. * delta * 2 ** (bi + bj) * 2
+									# d * Rijqk*Xki
+									e2bm[x_kia][r_kqij] += wl2 * 1. * delta * 2 ** (bi + bj)
+									# -2d * Yijkq*Rijkq
+									e2bm[r_kqij][y_kqijb] += wl2 * -2. * delta * 2 ** (bi + bj)
+									# -2d * Yijkq*Xki
+									e2bm[x_kia][y_kqijb] += wl2 * -2. * delta * 2 ** (bi + bj)
+									# -2 * Yijkq*Xqj
+									e2bm[x_qja][y_kqijb] += wl2 * -2. * 2 ** (bi + bj)
+									# Zijkq*Xqj
+									e2bm[x_qja][z_kqijb] += wl2 * 1. * 2 ** (bi + bj)
+									# -3d * Zijkq
+									if bi == bj:
+										e2bm[z_kqija][z_kqijb] += wl2 * -3. * delta * 2 ** (bi + bj)
+									elif bi < bj:
+										e2bm[z_kqija][z_kqijb] += wl2 * -3. * delta * 2 ** (bi + bj) * 2
+									# -d * Rijkq*Xqj
+									e2bm[x_qja][r_kqij] += wl2 * -1. * delta * 2 ** (bi + bj)
+									# 2d * Zijqk*Xqj
+									e2bm[x_qja][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
+									# 2d * Zijkq*Rijkq
+									e2bm[r_kqij][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
+							size_ij += 1
+							size_bj += m
+						size_ii += size_ij
+						size_bi += size_bj
+					size_iq += size_ii
+					size_bq += size_bi
+					x_q += len(self.__x[q]) * m
+				pbK += size_bq
+				piK += size_iq
+				x_k += len(self.__x[k]) * m
 			return e2bm
-
 
 	def __calcNbNodes(self):
 		count = 0
@@ -631,17 +670,19 @@ class BVC:
 		return count
 
 	def __calcNbCouplers(self):
+		nbv = self.get_NbBV()
 		count = 0
-		for i in range(self.get_NbBV() - 1):
-			for j in range(i + 1, self.get_NbBV()):
+		for i in range(nbv - 1):
+			for j in range(i + 1, nbv):
 				if self.__bvm[i, j] != 0.0:
 					count += 1
 		return count
 
 	def calcActiveBVs(self):
-		self.active = [False] * self.get_NbBV()
-		for i in range(self.get_NbBV()):
-			for j in range(i, self.get_NbBV()):
+		nbv = self.get_NbBV()
+		self.active = [False] * nbv
+		for i in range(nbv):
+			for j in range(i, nbv):
 				if self.__bvm[i, j] != 0.0:
 					self.active[i] = True
 					break
@@ -650,20 +691,20 @@ class BVC:
 
 	def createW(self):
 
-		N=self.__N
-		self.__W=np.zeros(shape=(self.__Lmax,self.__Lmax,N,N))
+		N = self.__N
+		self.__W = np.zeros(shape=(self.__Lmax, self.__Lmax, N, N))
 
-		for k in range(N-1):
-			for q in range(k+1,N):
+		for k in range(N - 1):
+			for q in range(k + 1, N):
 				for i in range(len(self.__x[k])):
 					for j in range(len(self.__x[q])):
-						self.__W[i,j,k,q] = 1. if self.__x[k][i] == self.__x[q][j] else 0.
+						self.__W[i, j, k, q] = 1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.
 
 	def w(self, i, j, k, q):
-		return self.__W[i,j,k,q]
+		return self.__W[i, j, k, q]
 
 	def sophiesMethod(self):
-		bvec = np.zeros((1, len(self.__bvm))) #1D array
+		bvec = np.zeros((1, len(self.__bvm)))  # 1D array
 		np.put(bvec, [x for x in range(0, len(self.__bvm))], [0, 0, 0, 0, 0,
 															  1, 0, 0, 0, 0,
 															  0, 1, 0, 0, 0,
@@ -671,7 +712,7 @@ class BVC:
 															  0, 0, 1, 0, 0,
 															  0, 0, 0, 0, 0])
 		print(bvec)
-		#np.put(bvec, ['''index values'''], ['''vector values'''])
+		# np.put(bvec, ['''index values'''], ['''vector values'''])
 		print("Optimal solution")
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
@@ -685,6 +726,7 @@ class BVC:
 
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
 
+
 			e0bm = self.__addE0Coefficients()
 			if verbose:
 				print("\n\nE0:\n", e0bm)
@@ -696,25 +738,25 @@ class BVC:
 			e2bm = self.__addE2Coefficients()
 			if verbose:
 				print("\n\nE2:\n", e2bm)
+				print("\n\nW:\n", self.__W)
 
-			#self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
+
+			# self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
 			self.__bvm = e2bm  # and comment this one
-			for i in range (self.get_rVarOffset()):
+			for i in range(self.get_rVarOffset()):
 				for j in range(self.get_rVarOffset()):
-					self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
-			#self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
-			#self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
+					self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
+			# self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
+			# self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
 
 			if self.__reduced:
 				print("REDUCED MODE!")
-				self.__bvm = e0bm+e1bm
+				self.__bvm = e0bm + e1bm
 			else:
 				self.__bvm = e2bm  # and comment this one
-				for i in range (self.get_rVarOffset()):
+				for i in range(self.get_rVarOffset()):
 					for j in range(self.get_rVarOffset()):
-						self.__bvm[i,j] += e0bm[i,j] + e1bm[i,j]
-
-			#self.sophiesMethod()
+						self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
 
 		else:
 			isize = self.get_NbIV()
@@ -724,7 +766,7 @@ class BVC:
 			self.__addE0Coefficients(intmode=True)
 			self.__addE1Coefficients(intmode=True)
 
-		#return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
+		# return self.__bvm + self.__bvm.T - numpy.diag(self.__bvm.diagonal())
 
 	def writeQUBO(self, outfilepath, infilepath):
 		"""Outputs QUBO format representation"""
@@ -748,4 +790,3 @@ class BVC:
 					print(i, j, v, file=o)
 
 		o.close()
-

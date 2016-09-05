@@ -118,6 +118,8 @@ class Msa2Qubo:
 		print("Output saved to:" + self.output)
 		sys.stdout.flush()
 
+		if self.verbose:
+			self.bvc.plotMatrix(self.output + ".png")
 
 
 

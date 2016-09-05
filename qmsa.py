@@ -41,7 +41,7 @@ def main():
 						help="The weighting to apply to gap penalties")
 	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
 						help="The weighting to apply to reward matches (must be greater than 1.0)")
-	parser.add_argument("--do_iqp", action='store_true', default="False", help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
+	parser.add_argument("--do_iqp", action='store_true', default=False, help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
 	parser.add_argument("-r", "--reduced", action='store_true', default=False, help="Run in reduced mode, only E0 and E1 will be active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
