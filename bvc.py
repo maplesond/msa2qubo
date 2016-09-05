@@ -239,6 +239,17 @@ class BVC:
 	def im(self):
 		return self.__qim
 
+	def getSolutionVars(self):
+		return self.__bvs
+
+	def getSolutionShape(self):
+		pvar = self.get_NbPositioningVars()
+		gvar = self.get_NbGapVars()
+		rvar = self.get_NbRewardVars()
+		yzvar = self.get_NbYVars()
+		list=['X'] * pvar + ['G'] * gvar + ['R'] * rvar + ['Y'] * yzvar + ['Z'] * yzvar
+		return "[{0}]".format(", ".join(str(i) for i in list))
+
 	def getPosSolution(self):
 		return self.__bvs[0:self.get_NbPositioningVars()]
 

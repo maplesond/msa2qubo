@@ -65,6 +65,17 @@ class Qubo2Msa:
 		msa = bvc.make_msa()
 		print("Made MSA")
 
+		if self.verbose:
+			print()
+			print()
+			print("Solution variables:")
+			print(bvc.getSolutionVars())
+
+			print("Solution shape:")
+			print(bvc.getSolutionShape())
+			print()
+			print()
+
 		print("Position variables:")
 		print(bvc.getPosSolution())
 		print()
