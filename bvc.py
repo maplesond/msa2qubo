@@ -738,7 +738,6 @@ class BVC:
 			e2bm = self.__addE2Coefficients()
 			if verbose:
 				print("\n\nE2:\n", e2bm)
-				print("\n\nW:\n", self.__W)
 
 
 			# self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
@@ -757,6 +756,11 @@ class BVC:
 				for i in range(self.get_rVarOffset()):
 					for j in range(self.get_rVarOffset()):
 						self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
+
+			if verbose:
+				print("\n\nBVM:\n", self.__bvm)
+				print("\n\nW:\n", self.__W)
+
 
 		else:
 			isize = self.get_NbIV()
