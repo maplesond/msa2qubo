@@ -3,6 +3,7 @@
 """qubo2msa.py: Converts output from a D-Wave device or D-Wave simulator to a MSA."""
 
 import argparse
+import numpy as np
 from Bio import SeqIO
 from bvc import BVC
 
@@ -27,6 +28,10 @@ class Qubo2Msa:
 		self.active = active
 		self.verbose = verbose
 		self.target_energy = target_energy
+		self.otherbvm = None
+
+	def bvm(self, bvc):
+		self.otherbvm = bvc
 
 	def run(self):
 
@@ -75,6 +80,10 @@ class Qubo2Msa:
 			print(bvc.getSolutionShape())
 			print()
 			print()
+
+			if self.otherbvm:
+				x=np.reshape(np.asarray(bvc.getSolutionVars()), newshape=(1,len(bvc.getSolutionVars())))
+				self.otherbvm.sophiesMethod(x)
 
 		print("Position variables:")
 		print(bvc.getPosSolution())

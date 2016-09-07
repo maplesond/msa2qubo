@@ -380,8 +380,21 @@ class BVC:
 		matDims = self.get_NbBV()
 
 		G = np.zeros((matDims, matDims, 3))
-		G=np.abs(self.__bvm)+1
+		B = np.zeros((matDims, matDims, 3))
+
+		G = np.copy(self.__bvm)
+		B = np.copy(self.__bvm)
+
+		lt0 = self.__bvm < 0
+		G[lt0] = 0
+		gt0 = self.__bvm > 0
+		B[gt0] = 0
+
+		G= G+1
 		G = np.log2(G)
+		B= np.abs(B)+1
+		B = np.log2(B)
+
 		#G[self.__bvm != 0] = [0, 0, 0]
 		#G[self.__bvm == 0] = [1, 1, 1]
 		plt.figure(figsize=(10, 10))
@@ -409,7 +422,10 @@ class BVC:
 		plt.axvline(self.get_zVarOffset() - 0.5)
 		plt.axhline(self.get_zVarOffset() - 0.5)
 
-		plt.imshow(G, cmap='Greys', interpolation='nearest')
+		plt.imshow(G, cmap='Reds', interpolation='nearest', alpha=0.5)
+		plt.colorbar()
+		plt.imshow(B, cmap='Blues', interpolation='nearest', alpha=0.5)
+		plt.colorbar()
 		plt.savefig(outpath)
 
 	def __addE0Coefficients(self, intmode=False):
@@ -703,16 +719,7 @@ class BVC:
 	def w(self, i, j, k, q):
 		return self.__W[i, j, k, q]
 
-	def sophiesMethod(self):
-		bvec = np.zeros((1, len(self.__bvm)))  # 1D array
-		np.put(bvec, [x for x in range(0, len(self.__bvm))], [0, 0, 0, 0, 0,
-															  1, 0, 0, 0, 0,
-															  0, 1, 0, 0, 0,
-															  1, 1, 0, 0, 0,
-															  0, 0, 1, 0, 0,
-															  0, 0, 0, 0, 0])
-		print(bvec)
-		# np.put(bvec, ['''index values'''], ['''vector values'''])
+	def sophiesMethod(self, bvec):
 		print("Optimal solution")
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
