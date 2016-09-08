@@ -395,6 +395,8 @@ class BVC:
 		B= np.abs(B)+1
 		B = np.log2(B)
 
+		F = G-B
+
 		#G[self.__bvm != 0] = [0, 0, 0]
 		#G[self.__bvm == 0] = [1, 1, 1]
 		plt.figure(figsize=(10, 10))
@@ -422,10 +424,10 @@ class BVC:
 		plt.axvline(self.get_zVarOffset() - 0.5)
 		plt.axhline(self.get_zVarOffset() - 0.5)
 
-		plt.imshow(G, cmap='Reds', interpolation='nearest', alpha=0.5)
+		plt.imshow(F, cmap='RdGy', interpolation='nearest')
 		plt.colorbar()
-		plt.imshow(B, cmap='Blues', interpolation='nearest', alpha=0.5)
-		plt.colorbar()
+		#plt.imshow(B, cmap='Greens', interpolation='nearest', alpha=0.5)
+		#plt.colorbar()
 		plt.savefig(outpath)
 
 	def __addE0Coefficients(self, intmode=False):
@@ -625,7 +627,7 @@ class BVC:
 							r_kqij = bRMatPos + i_idx
 
 							# - Wijkq*Rijkq
-							e2bm[r_kqij][r_kqij] += -Wijkq
+							e2bm[r_kqij][r_kqij] -= Wijkq			# OK
 
 							for bi in range(0, m):
 								for bj in range(0, m):
@@ -747,13 +749,11 @@ class BVC:
 				print("\n\nE2:\n", e2bm)
 
 
-			# self.__bvm = np.zeros((self.get_NbBV(), self.get_NbBV())) # To deactivate E2 uncomment this line
-			self.__bvm = e2bm  # and comment this one
+			self.__bvm = e2bm  # For the final matrix just start with the E2 matrix
+			# Then add the X and G parts to the matrix (E0 + E1)
 			for i in range(self.get_rVarOffset()):
 				for j in range(self.get_rVarOffset()):
 					self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
-			# self.__bvm[0:e0bm.shape[0], 0:e0bm.shape[1]] += e0bm
-			# self.__bvm[0:e1bm.shape[0], 0:e1bm.shape[1]] += e1bm
 
 			if self.__reduced:
 				print("REDUCED MODE!")
