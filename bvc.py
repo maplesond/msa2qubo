@@ -76,11 +76,11 @@ class BVC:
 		self.__W = np.zeros((0, 0))
 
 		self.__bvm = np.zeros((0, 0))
-		self.__bvmt = np.zeros((0, 0))
 		self.__qim = np.zeros((0, 0))
 		self.__lil = []
 
 		self.__bvs = []
+		self.unused= []
 		self.energy = 0
 		self.ienergy = 0
 		self.active = []
@@ -409,22 +409,33 @@ class BVC:
 		plt.axvline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
 		plt.axhline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
 
-		plt.annotate(s="R", xy=((self.get_rVarOffset() + self.get_yVarOffset()) * 0.5, -1))
-		plt.annotate(s="R", xy=(matDims, (self.get_rVarOffset() + self.get_yVarOffset()) * 0.5))
+		rsize = 0
+		for i in range(self.get_rVarOffset(), self.get_rVarOffset() + self.get_NbRewardVars()):
+			if not self.unused[i]:
+				rsize += 1
+		yoffset = self.get_rVarOffset() + rsize
+		ysize = 0
+		for i in range(self.get_yVarOffset(), self.get_yVarOffset() + self.get_NbYVars()):
+			if not self.unused[i]:
+				ysize += 1
+		zoffset = yoffset + ysize
+
+		plt.annotate(s="R", xy=((self.get_rVarOffset() + rsize) * 0.5, -1))
+		plt.annotate(s="R", xy=(matDims, (self.get_rVarOffset() + rsize) * 0.5))
 		plt.axvline(self.get_rVarOffset() - 0.5)
 		plt.axhline(self.get_rVarOffset() - 0.5)
 
-		plt.annotate(s="Y", xy=((self.get_yVarOffset() + self.get_zVarOffset()) * 0.5, -1))
-		plt.annotate(s="Y", xy=(matDims, (self.get_yVarOffset() + self.get_zVarOffset()) * 0.5))
-		plt.axvline(self.get_yVarOffset() - 0.5)
-		plt.axhline(self.get_yVarOffset() - 0.5)
+		plt.annotate(s="Y", xy=((yoffset + ysize) * 0.5, -1))
+		plt.annotate(s="Y", xy=(matDims, (yoffset + ysize) * 0.5))
+		plt.axvline(yoffset - 0.5)
+		plt.axhline(yoffset - 0.5)
 
-		plt.annotate(s="Z", xy=((self.get_zVarOffset() + matDims) * 0.5, -1))
-		plt.annotate(s="Z", xy=(matDims + 0.11, (self.get_zVarOffset() + matDims) * 0.5))
-		plt.axvline(self.get_zVarOffset() - 0.5)
-		plt.axhline(self.get_zVarOffset() - 0.5)
+		plt.annotate(s="Z", xy=((zoffset + matDims) * 0.5, -1))
+		plt.annotate(s="Z", xy=(matDims + 0.11, (zoffset + matDims) * 0.5))
+		plt.axvline(zoffset - 0.5)
+		plt.axhline(zoffset - 0.5)
 
-		plt.imshow(F, cmap='RdGy', interpolation='nearest')
+		plt.imshow(F, cmap='RdGy', interpolation='nearest', vmin=-10, vmax=10)
 		plt.colorbar()
 		#plt.imshow(B, cmap='Greens', interpolation='nearest', alpha=0.5)
 		#plt.colorbar()
@@ -629,6 +640,19 @@ class BVC:
 							# - Wijkq*Rijkq
 							e2bm[r_kqij][r_kqij] -= Wijkq			# OK
 
+							'''
+							for a in range(0, m):
+
+								x_kia = x_ki + a
+								x_qja = x_qj + a
+
+								# + W_ijkq*r_ijkq*x_kia^2
+								e2bm[x_kia][r_kqij] += wl2 * (2 ** a) ** 2
+								# + W_ijkq*r_ijkq*x_kqj^2
+								e2bm[x_qja][r_kqij] += wl2 * (2 ** a) ** 2
+
+
+							'''
 							for bi in range(0, m):
 								for bj in range(0, m):
 
@@ -639,6 +663,7 @@ class BVC:
 									y_kqijb = bYMatPos + b_idx + bj
 									z_kqija = bZMatPos + b_idx + bi
 									z_kqijb = bZMatPos + b_idx + bj
+
 
 									# Yijkq*Xki
 									e2bm[x_kia][y_kqijb] += wl2 * 1. * 2 ** (bi + bj)
@@ -668,6 +693,7 @@ class BVC:
 									e2bm[x_qja][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
 									# 2d * Zijkq*Rijkq
 									e2bm[r_kqij][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
+
 							size_ij += 1
 							size_bj += m
 						size_ii += size_ij
@@ -730,7 +756,6 @@ class BVC:
 		if not intmode:
 			size = self.get_NbBV()
 			self.__bvm = np.zeros((size, size))
-			self.__bvmt = np.zeros((size, size))
 			self.energy = 0
 
 			np.set_printoptions(threshold=np.inf, linewidth=np.inf, suppress=True, precision=2)
@@ -749,20 +774,32 @@ class BVC:
 				print("\n\nE2:\n", e2bm)
 
 
-			self.__bvm = e2bm  # For the final matrix just start with the E2 matrix
-			# Then add the X and G parts to the matrix (E0 + E1)
-			for i in range(self.get_rVarOffset()):
-				for j in range(self.get_rVarOffset()):
-					self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
-
 			if self.__reduced:
 				print("REDUCED MODE!")
 				self.__bvm = e0bm + e1bm
 			else:
-				self.__bvm = e2bm  # and comment this one
+
+				# Get unused BVs
+				self.__bvm = e2bm  # For the final matrix just start with the E2 matrix
 				for i in range(self.get_rVarOffset()):
 					for j in range(self.get_rVarOffset()):
 						self.__bvm[i, j] += e0bm[i, j] + e1bm[i, j]
+
+				# Remove parts (columns and rows of BVM that are not required)
+				j = 0
+				size = len(self.__bvm)
+				for i in range(size):
+					if ~self.__bvm[j].any():
+						self.__bvm = np.delete(self.__bvm, j, 0)
+						self.__bvm = np.delete(self.__bvm, j, 1)
+						self.unused.append(True)
+						j -= 1
+					else:
+						self.unused.append(False)
+					j += 1
+
+
+
 
 			if verbose:
 				print("\n\nBVM:\n", self.__bvm)
