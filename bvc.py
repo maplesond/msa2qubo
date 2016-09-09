@@ -409,31 +409,32 @@ class BVC:
 		plt.axvline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
 		plt.axhline(self.get_NbPositioningVars() + self.get_NbGapVars() - 0.5)
 
-		rsize = 0
-		for i in range(self.get_rVarOffset(), self.get_rVarOffset() + self.get_NbRewardVars()):
-			if not self.unused[i]:
-				rsize += 1
-		yoffset = self.get_rVarOffset() + rsize
-		ysize = 0
-		for i in range(self.get_yVarOffset(), self.get_yVarOffset() + self.get_NbYVars()):
-			if not self.unused[i]:
-				ysize += 1
-		zoffset = yoffset + ysize
+		if not self.__reduced:
+			rsize = 0
+			for i in range(self.get_rVarOffset(), self.get_rVarOffset() + self.get_NbRewardVars()):
+				if not self.unused[i]:
+					rsize += 1
+			yoffset = self.get_rVarOffset() + rsize
+			ysize = 0
+			for i in range(self.get_yVarOffset(), self.get_yVarOffset() + self.get_NbYVars()):
+				if not self.unused[i]:
+					ysize += 1
+			zoffset = yoffset + ysize
 
-		plt.annotate(s="R", xy=((self.get_rVarOffset() + rsize) * 0.5, -1))
-		plt.annotate(s="R", xy=(matDims, (self.get_rVarOffset() + rsize) * 0.5))
-		plt.axvline(self.get_rVarOffset() - 0.5)
-		plt.axhline(self.get_rVarOffset() - 0.5)
+			plt.annotate(s="R", xy=((self.get_rVarOffset() + rsize) * 0.5, -1))
+			plt.annotate(s="R", xy=(matDims, (self.get_rVarOffset() + rsize) * 0.5))
+			plt.axvline(self.get_rVarOffset() - 0.5)
+			plt.axhline(self.get_rVarOffset() - 0.5)
 
-		plt.annotate(s="Y", xy=((yoffset + ysize) * 0.5, -1))
-		plt.annotate(s="Y", xy=(matDims, (yoffset + ysize) * 0.5))
-		plt.axvline(yoffset - 0.5)
-		plt.axhline(yoffset - 0.5)
+			plt.annotate(s="Y", xy=((yoffset + ysize) * 0.5, -1))
+			plt.annotate(s="Y", xy=(matDims, (yoffset + ysize) * 0.5))
+			plt.axvline(yoffset - 0.5)
+			plt.axhline(yoffset - 0.5)
 
-		plt.annotate(s="Z", xy=((zoffset + matDims) * 0.5, -1))
-		plt.annotate(s="Z", xy=(matDims + 0.11, (zoffset + matDims) * 0.5))
-		plt.axvline(zoffset - 0.5)
-		plt.axhline(zoffset - 0.5)
+			plt.annotate(s="Z", xy=((zoffset + matDims) * 0.5, -1))
+			plt.annotate(s="Z", xy=(matDims + 0.11, (zoffset + matDims) * 0.5))
+			plt.axvline(zoffset - 0.5)
+			plt.axhline(zoffset - 0.5)
 
 		plt.imshow(F, cmap='RdGy', interpolation='nearest', vmin=-10, vmax=10)
 		plt.colorbar()
@@ -540,13 +541,12 @@ class BVC:
 					# xx - coupled
 					for x_a1 in range(self.m()):
 						for x_a2 in range(self.m()):
-							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2))
-							e0bm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * quad_scale
+							e0bm[x_kj + x_a1, x_kj1 + x_a2] -= 2 * 2 ** (x_a1 + x_a2)
 
 					# xG - coupled
 					for x_a in range(self.m()):
 						for G_a in range(x_a, self.p()):
-							quad_scale = (2 ** x_a) ** 2 if x_a == G_a else (2 ** (G_a + x_a))
+							quad_scale = 2 ** (G_a + x_a)
 							e0bm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
 							e0bm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
 							e0bm[x_k + x_a, G_k + G_a] -= 2 * quad_scale
@@ -595,7 +595,6 @@ class BVC:
 		if intmode:
 			pass
 		else:
-			delta = 1
 			m = self.m()
 			bRMatPos = self.get_rVarOffset()
 			bYMatPos = self.get_yVarOffset()  # No need to transform R to binary as it only either (0,1)
@@ -640,19 +639,6 @@ class BVC:
 							# - Wijkq*Rijkq
 							e2bm[r_kqij][r_kqij] -= Wijkq			# OK
 
-							'''
-							for a in range(0, m):
-
-								x_kia = x_ki + a
-								x_qja = x_qj + a
-
-								# + W_ijkq*r_ijkq*x_kia^2
-								e2bm[x_kia][r_kqij] += wl2 * (2 ** a) ** 2
-								# + W_ijkq*r_ijkq*x_kqj^2
-								e2bm[x_qja][r_kqij] += wl2 * (2 ** a) ** 2
-
-
-							'''
 							for bi in range(0, m):
 								for bj in range(0, m):
 
@@ -664,35 +650,37 @@ class BVC:
 									z_kqija = bZMatPos + b_idx + bi
 									z_kqijb = bZMatPos + b_idx + bj
 
+									qs = 2 ** (bi + bj)
 
 									# Yijkq*Xki
-									e2bm[x_kia][y_kqijb] += wl2 * 1. * 2 ** (bi + bj)
+									e2bm[x_kia][y_kqijb] += wl2 * 1. * qs
+
 									# 3d * Yijkq
 									if bi == bj:
-										e2bm[y_kqija][y_kqijb] += wl2 * 3. * delta * 2 ** (bi + bj)
+										e2bm[y_kqija][y_kqijb] += wl2 * 3. * self.__d * qs
 									elif bi < bj:
-										e2bm[y_kqija][y_kqijb] += wl2 * 3. * delta * 2 ** (bi + bj) * 2
+										e2bm[y_kqija][y_kqijb] += wl2 * 3. * self.__d * qs * 2
 									# d * Rijqk*Xki
-									e2bm[x_kia][r_kqij] += wl2 * 1. * delta * 2 ** (bi + bj)
+									e2bm[x_kia][r_kqij] += wl2 * 1. * self.__d * qs
 									# -2d * Yijkq*Rijkq
-									e2bm[r_kqij][y_kqijb] += wl2 * -2. * delta * 2 ** (bi + bj)
+									e2bm[r_kqij][y_kqijb] += wl2 * -2. * self.__d * qs
 									# -2d * Yijkq*Xki
-									e2bm[x_kia][y_kqijb] += wl2 * -2. * delta * 2 ** (bi + bj)
+									e2bm[x_kia][y_kqijb] += wl2 * -2. * self.__d * qs
 									# -2 * Yijkq*Xqj
-									e2bm[x_qja][y_kqijb] += wl2 * -2. * 2 ** (bi + bj)
+									e2bm[x_qja][y_kqijb] += wl2 * -2. * qs
 									# Zijkq*Xqj
-									e2bm[x_qja][z_kqijb] += wl2 * 1. * 2 ** (bi + bj)
+									e2bm[x_qja][z_kqijb] += wl2 * 1. * qs
 									# -3d * Zijkq
 									if bi == bj:
-										e2bm[z_kqija][z_kqijb] += wl2 * -3. * delta * 2 ** (bi + bj)
+										e2bm[z_kqija][z_kqijb] += wl2 * -3. * self.__d * qs
 									elif bi < bj:
-										e2bm[z_kqija][z_kqijb] += wl2 * -3. * delta * 2 ** (bi + bj) * 2
+										e2bm[z_kqija][z_kqijb] += wl2 * -3. * self.__d * qs * 2
 									# -d * Rijkq*Xqj
-									e2bm[x_qja][r_kqij] += wl2 * -1. * delta * 2 ** (bi + bj)
+									e2bm[x_qja][r_kqij] += wl2 * -1. * self.__d * qs
 									# 2d * Zijqk*Xqj
-									e2bm[x_qja][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
+									e2bm[x_qja][z_kqijb] += wl2 * 2. * self.__d * qs
 									# 2d * Zijkq*Rijkq
-									e2bm[r_kqij][z_kqijb] += wl2 * 2. * delta * 2 ** (bi + bj)
+									e2bm[r_kqij][z_kqijb] += wl2 * 2. * self.__d * qs
 
 							size_ij += 1
 							size_bj += m
@@ -749,6 +737,13 @@ class BVC:
 
 	def sophiesMethod(self, bvec):
 		print("Optimal solution")
+		bvec=np.array([0,0,0, 1,0,0, 0,0,0, 1,0,0,
+					   0,0,0,0,
+					   1,1,
+					   0,0,0, 1,0,0,
+					   0,0,0, 1,0,0])
+					   #1,1,1, 1,1,1,
+					   #0,0,0, 0,0,0])
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
 	def createBVMatrix(self, intmode=False, verbose=False):
