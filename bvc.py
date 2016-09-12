@@ -628,7 +628,11 @@ class BVC:
 						size_bj = 0
 						for j in range(len(self.__x[q])):
 							Wijkq = self.w(i=i, j=j, k=k, q=q)
-							wl2 = Wijkq * self.l2()
+							w_l2 = Wijkq * self.l2()
+							w_l2_1d = w_l2 * self.__d
+							w_l2_2d = w_l2_1d * 2
+							w_l2_3d = w_l2_1d * 3
+
 							x_qj = x_q + (j * m)
 
 							i_idx = piK + size_iq + size_ii + size_ij
@@ -650,37 +654,44 @@ class BVC:
 									z_kqija = bZMatPos + b_idx + bi
 									z_kqijb = bZMatPos + b_idx + bj
 
+									# Pre-calculations
 									qs = 2 ** (bi + bj)
 
 									# Yijkq*Xki
-									e2bm[x_kia][y_kqijb] += wl2 * 1. * qs
+									e2bm[x_kia][y_kqijb] += w_l2 * qs
+									# Zijkq*Xqj
+									e2bm[x_qja][z_kqijb] += w_l2 * qs
 
 									# 3d * Yijkq
 									if bi == bj:
-										e2bm[y_kqija][y_kqijb] += wl2 * 3. * self.__d * qs
+										e2bm[y_kqija][y_kqijb] += w_l2_3d * qs
 									elif bi < bj:
-										e2bm[y_kqija][y_kqijb] += wl2 * 3. * self.__d * qs * 2
-									# d * Rijqk*Xki
-									e2bm[x_kia][r_kqij] += wl2 * 1. * self.__d * qs
-									# -2d * Yijkq*Rijkq
-									e2bm[r_kqij][y_kqijb] += wl2 * -2. * self.__d * qs
-									# -2d * Yijkq*Xki
-									e2bm[x_kia][y_kqijb] += wl2 * -2. * self.__d * qs
-									# -2 * Yijkq*Xqj
-									e2bm[x_qja][y_kqijb] += wl2 * -2. * qs
-									# Zijkq*Xqj
-									e2bm[x_qja][z_kqijb] += wl2 * 1. * qs
+										e2bm[y_kqija][y_kqijb] += w_l2_3d * qs * 2
+
 									# -3d * Zijkq
 									if bi == bj:
-										e2bm[z_kqija][z_kqijb] += wl2 * -3. * self.__d * qs
+										e2bm[z_kqija][z_kqijb] -= w_l2_3d * qs
 									elif bi < bj:
-										e2bm[z_kqija][z_kqijb] += wl2 * -3. * self.__d * qs * 2
+										e2bm[z_kqija][z_kqijb] -= w_l2_3d * qs * 2
+
+
+									# d * Rijqk*Xki
+									e2bm[x_kia][r_kqij] += w_l2_1d * qs
 									# -d * Rijkq*Xqj
-									e2bm[x_qja][r_kqij] += wl2 * -1. * self.__d * qs
+									e2bm[x_qja][r_kqij] -= w_l2_1d * qs
+
+
+									# -2d * Yijkq*Rijkq
+									e2bm[r_kqij][y_kqijb] -= w_l2_2d * qs
+									# -2d * Yijkq*Xki
+									e2bm[x_kia][y_kqijb] -= w_l2_2d * qs
+									# -2 * Yijkq*Xqj
+									e2bm[x_qja][y_kqijb] -= w_l2_2d * qs
+
 									# 2d * Zijqk*Xqj
-									e2bm[x_qja][z_kqijb] += wl2 * 2. * self.__d * qs
+									e2bm[x_qja][z_kqijb] += w_l2_2d * qs
 									# 2d * Zijkq*Rijkq
-									e2bm[r_kqij][z_kqijb] += wl2 * 2. * self.__d * qs
+									e2bm[r_kqij][z_kqijb] += w_l2_2d * qs
 
 							size_ij += 1
 							size_bj += m
