@@ -38,10 +38,11 @@ class BVC:
 			self.__l0 = l0
 			self.__l1 = l1
 			self.__l2 = l2
-			self.__reduced = reduced
 			self.__N = 0
 			self.__Lmax = 0
 			self.__K = 0
+			self.unused=[]
+			self.__reduced = reduced
 
 			self.__x = []
 			self.__seqs = []
@@ -64,9 +65,16 @@ class BVC:
 			self.__Lmax = int(parts[1])
 			parts = handle.readline().split("\t")
 			self.__K = int(parts[1])
-			self.__x = []
 			self.seqs = []
+			used = handle.readline()
+			used = handle.readline().strip()
+			self.unused= []
+			for i in range(len(used)):
+				self.unused.append(True if used[i] == "1" else False)
+			parts = handle.readline().strip().split("\t")
+			self.__reduced = True if parts[1] == "True" else False
 
+			self.__x = []
 			for line in handle:
 				parts = line.split("\t")
 				self.__x.append([0] * int(parts[1]))
@@ -80,7 +88,7 @@ class BVC:
 		self.__lil = []
 
 		self.__bvs = []
-		self.unused= []
+
 		self.energy = 0
 		self.ienergy = 0
 		self.active = []
@@ -137,6 +145,11 @@ class BVC:
 		print("N\t" + str(self.__N), file=handle)
 		print("Lmax\t" + str(self.__Lmax), file=handle)
 		print("K\t" + str(self.__K), file=handle)
+		print("Unused:", file=handle)
+		for i in range(len(self.unused)):
+			print("1" if self.unused[i] else "0", end="", file=handle)
+		print("", file=handle)
+		print("Reduced mode:\t" + str(self.__reduced), file=handle)
 		for v in self.__x:
 			print("x\t" + str(len(v)), file=handle)
 
@@ -254,9 +267,20 @@ class BVC:
 	def getSolutionShape(self):
 		pvar = self.get_NbPositioningVars()
 		gvar = self.get_NbGapVars()
-		rvar = self.get_NbRewardVars()
-		yzvar = self.get_NbYVars()
-		list=['X'] * pvar + ['G'] * gvar + ['R'] * rvar + ['Y'] * yzvar + ['Z'] * yzvar
+
+		list=['X'] * pvar + ['G'] * gvar
+
+		if not self.__reduced:
+			rsize = 0
+			for i in range(self.get_rVarOffset(), self.get_rVarOffset() + self.get_NbRewardVars()):
+				if not self.unused[i]:
+					rsize += 1
+			ysize = 0
+			for i in range(self.get_yVarOffset(), self.get_yVarOffset() + self.get_NbYVars()):
+				if not self.unused[i]:
+					ysize += 1
+			list += ['R'] * rsize + ['Y'] * ysize + ['Z'] * ysize
+
 		return "[{0}]".format(", ".join(str(i) for i in list))
 
 	def getPosSolution(self):

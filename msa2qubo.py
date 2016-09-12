@@ -82,11 +82,6 @@ class Msa2Qubo:
 		if self.verbose:
 			print(self.bvc)
 
-		# Save settings file
-		print()
-		self.bvc.save_settings(self.output + ".settings")
-		print("Saved settings to: " + self.output + ".settings")
-
 		# Create matrix
 		print()
 		print("Creating W matrix ...", end="")
@@ -120,6 +115,11 @@ class Msa2Qubo:
 
 		if self.verbose:
 			self.bvc.plotMatrix(self.output + ".png")
+
+		# Save settings file
+		print()
+		self.bvc.save_settings(self.output + ".settings")
+		print("Saved settings to: " + self.output + ".settings")
 
 
 

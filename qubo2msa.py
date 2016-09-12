@@ -81,9 +81,9 @@ class Qubo2Msa:
 			print()
 			print()
 
-			if self.otherbvm:
-				x=np.reshape(np.asarray(bvc.getSolutionVars()), newshape=(1,len(bvc.getSolutionVars())))
-				self.otherbvm.sophiesMethod(x)
+			#if self.otherbvm:
+			#	x=np.reshape(np.asarray(bvc.getSolutionVars()), newshape=(1,len(bvc.getSolutionVars())))
+			#	self.otherbvm.sophiesMethod(x)
 
 		print("Position variables:")
 		print(bvc.getPosSolution())
