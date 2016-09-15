@@ -664,11 +664,18 @@ class BVC:
 						size_ij = 0
 						size_bj = 0
 						for j in range(len(self.__x[q])):
+
+							term1 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+							term2 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+							term3 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+
 							Wijkq = self.w(i=i, j=j, k=k, q=q)
+
 							w_l2 = Wijkq * self.l2()
-							w_l2_1d = w_l2 * self.__d
-							w_l2_2d = w_l2_1d * 2
-							w_l2_3d = w_l2_1d * 3
+
+							d1 = self.__d
+							d2 = self.__d * 2
+							d3 = self.__d * 3
 
 							b_qj = b_q + (j * self.m())
 
@@ -677,8 +684,8 @@ class BVC:
 
 							r_kqij = self.get_rVarOffset() + i_idx
 
-							# - Wijkq*Rijkq
-							e2bm[r_kqij][r_kqij] -= Wijkq			# OK
+							# Wijkq*Rijkq
+							e2bm[r_kqij][r_kqij] += Wijkq			# OK
 
 							for a in range(self.m()):
 
@@ -688,117 +695,52 @@ class BVC:
 								y_kqija = self.get_yVarOffset() + b_idx + a
 								z_kqija = self.get_zVarOffset() + b_idx + a
 
-								ls = 2 ** a
-								qs = 2 ** (2 * a)
-
-
-								# On diagonal (Y + Z) parts
-
-								# 3d * Y_ijkqa
-								e2bm[y_kqija][y_kqija] -= w_l2_3d * qs
-
-								# 3d * Z_ijkqa
-								e2bm[z_kqija][z_kqija] -= w_l2_3d * qs
-
-								# 3d * Y_ijkqa
-								e2bm[y_kqija][y_kqija] += w_l2_3d * qs * 2
-
-
-								# R x X lines
-
-								# d * R_ijqk * X_kia
-								e2bm[b_kia, r_kqij] += w_l2_1d * ls
-
-								# d * R_ijqk * X_qja
-								e2bm[b_qja, r_kqij] += w_l2_1d * ls
-
-								# d * R_ijqk * X_kia
-								e2bm[b_kia, r_kqij] -= w_l2_1d * ls * 2
-
-
-								# Y or Z x R lines
-
-								# 2d * Y_ijkqa * R_ijkq
-								e2bm[r_kqij, y_kqija] += w_l2_2d * ls
-
-								# 2d * Z_ijkqa * R_ijkq
-								e2bm[r_kqij, z_kqija] += w_l2_2d * ls
-
-								# 2d * Y_ijkqa * R_ijkq
-								e2bm[r_kqij, y_kqija] -= w_l2_2d * ls * 2
-
-
-
-								'''
-								# 2d * X_kia * Y_ijkqa
-								e2bm[b_kia, y_kqija] += w_l2_2d * qs
-
-								# +2d * X_qja * Z_ijkqa
-								e2bm[b_qja, z_kqija] += w_l2_2d * qs
-
-								# +2d * X_kia * Y_ijkqa
-								e2bm[b_kia, y_kqija] -= w_l2_2d * qs * 2
-
-
-
-								# y_ijkqa * X_kib
-								e2bm[b_kia, y_kqija] += w_l2 * qs
-
-								# z_ijkqa * x_kqa
-								e2bm[b_qja, z_kqija] += w_l2 * qs
-
-								# y_ijkqa * x_qjb
-								e2bm[b_qja, y_kqija] -= w_l2 * qs * 2
-								'''
-
-
-								# Off diagonal (Y + Z) parts
-								for b in range(a+1, self.m()):
-
-									y_kqijb = self.get_yVarOffset() + b_idx + b
-									z_kqijb = self.get_zVarOffset() + b_idx + b
-
-									quad_scale = 2 ** (a + b + 1)
-
-									# 3d * Y_ijkqa
-									e2bm[y_kqija, y_kqijb] -= w_l2_3d * quad_scale
-
-									# 3d * Z_ijkqa
-									e2bm[z_kqija, z_kqijb] -= w_l2_3d * quad_scale
-
-									# 3d * Y_ijkqa
-									e2bm[y_kqija, y_kqijb] += w_l2_3d * quad_scale * 2
-
 
 								# X and Y or Z blocks
 								for b in range(self.m()):
 
+									b_kib = b_ki + b
+									b_qjb = b_qj + b
+
 									y_kqijb = self.get_yVarOffset() + b_idx + b
 									z_kqijb = self.get_zVarOffset() + b_idx + b
 
+
 									quad_scale = 2 ** (a + b)
 
-									# 2d * X_kia * Y_ijkqa
-									e2bm[b_kia, y_kqijb] += w_l2_2d * quad_scale
-
-									# +2d * X_qja * Z_ijkqa
-									e2bm[b_qja, z_kqijb] += w_l2_2d * quad_scale
-
-									# +2d * X_kia * Y_ijkqa
-									e2bm[b_kia, y_kqijb] -= w_l2_2d * quad_scale * 2
+									# z * x_3
+									term1[b_kib, y_kqija] += quad_scale
+									term2[b_qjb, z_kqija] += quad_scale
+									term3[b_qjb, y_kqija] += quad_scale
 
 
-
-									# y_ijkqa * X_kib
-									e2bm[b_kia][y_kqijb] += w_l2 * quad_scale
-
-									# z_ijkqa * x_kqa
-									e2bm[b_qja][z_kqijb] += w_l2 * quad_scale
-
-									# y_ijkqa * x_qjb
-									e2bm[b_qja][y_kqijb] -= w_l2 * quad_scale * 2
+									# delta * x_1 * x_2
+									term1[b_kia, r_kqij] += d1 * quad_scale
+									term2[b_qja, r_kqij] += d1 * quad_scale
+									term3[b_kia, r_kqij] += d1 * quad_scale
 
 
+									# -2 * delta * x_1 * z
+									term1[r_kqij, y_kqija] -= d2 * quad_scale
+									term2[r_kqij, z_kqija] -= d2 * quad_scale
+									term3[r_kqij, y_kqija] -= d2 * quad_scale
+
+
+									# -2 * delta * x_2 * z
+									term1[b_kia, y_kqija] -= d2 * quad_scale
+									term2[b_qja, z_kqija] -= d2 * quad_scale
+									term3[b_kia, y_kqija] -= d2 * quad_scale
+
+
+									# 3 * delta * z
+									term1[y_kqija, y_kqija] += d3 * quad_scale
+									term2[z_kqija, z_kqija] += d3 * quad_scale
+									term3[y_kqija, y_kqija] += d3 * quad_scale
+
+
+							for s in range(self.getTotalBVs()):
+								for t in range(s, self.getTotalBVs()):
+									e2bm[s, t] += -w_l2 * term1[s,t] - w_l2 * term2[s,t] + 2 * w_l2 * term3[s,t]
 
 							size_ij += 1
 							size_bj += self.m()
@@ -810,6 +752,10 @@ class BVC:
 				pbK += size_bq
 				piK += size_iq
 				b_k += len(self.__x[k]) * self.m()
+
+			for k in range(self.getTotalBVs()):
+				for j in range(k, self.getTotalBVs()):
+					e2bm[k, j] = -e2bm[k,j]
 			return e2bm
 
 	def __calcNbNodes(self):
@@ -853,7 +799,7 @@ class BVC:
 	def w(self, i, j, k, q):
 		return self.__W[i, j, k, q]
 
-	def sophiesMethod(self, bvec):
+	def sophiesMethod(self):
 		print("Optimal solution")
 		bvec=np.array([0,0,0, 1,0,0, 0,0,0, 1,0,0,
 					   0,0,0,0,
@@ -902,7 +848,7 @@ class BVC:
 				j = 0
 				size = len(self.__bvm)
 				for i in range(size):
-					if ~self.__bvm[j].any():
+					if ~self.__bvm[:,j].any():
 						self.__bvm = np.delete(self.__bvm, j, 0)
 						self.__bvm = np.delete(self.__bvm, j, 1)
 						self.unused.append(True)
@@ -912,12 +858,12 @@ class BVC:
 					j += 1
 
 
-
-
 			if verbose:
 				print("\n\nBVM:\n", self.__bvm)
 				print("\n\nW:\n", self.__W)
 
+
+			#self.sophiesMethod()
 
 		else:
 			isize = self.get_NbIV()
