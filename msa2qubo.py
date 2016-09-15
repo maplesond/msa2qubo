@@ -82,6 +82,10 @@ class Msa2Qubo:
 		if self.verbose:
 			print(self.bvc)
 
+		if self.bvc.p() >= self.bvc.m():
+			print("P (max gap size) is too large.  Please ensure that p (bits per gap) is significantly less than m (bits per position in solution space)")
+			exit(1)
+
 		# Create matrix
 		print()
 		print("Creating W matrix ...", end="")
@@ -132,26 +136,26 @@ def main():
 	parser.add_argument("-d", "--delta", type=float, default=2.0, help="Delta.  The scaling factor to apply when converting products of 3BVs to 2BVs.")
 	parser.add_argument("-s", "--simulate", action='store_true', default=False,
 						help="Whether to try and simulate D-Wave and come up with a solution to the problem.  Only runs if number of binary variables is < 30.")
-	parser.add_argument("-l0", "--position_weighting", type=float, default=0.8,
-						help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
-	parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1,
-						help="The weighting to apply to gap penalties")
-	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
-						help="The weighting to apply to reward matches (must be greater than 1.0)")
+	parser.add_argument("-l0", "--invalid_position_penalty", type=float, default=10.0,
+						help="The penalty to apply for invalid sequence ordering (must be much larger than --gap_weighting)")
+	parser.add_argument("-l1", "--gap_penalty", type=float, default=0.1,
+						help="The penalty to apply to any detected gaps")
+	parser.add_argument("-l2", "--invalid_reward_penalty", type=float, default=100.0,
+						help="The penalty to apply to matches in different columns (must be greater than 1.0)")
 	parser.add_argument("-r", "--reduced", action='store_true', default=False,
 						help="Run in reduced mode, only E0 and E1 active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
-	if args.position_weighting < args.gap_weighting:
+	if args.invalid_position_penalty < args.gap_penalty:
 		print("-l0 must be larger than -l1")
 		exit(1)
 
-	if args.gap_weighting <= 0.0:
+	if args.gap_penalty <= 0.0:
 		print("-l1 must be larger than 0.0")
 		print(1)
 
-	if args.reward_weighting <= 1.0:
+	if args.invalid_reward_penalty <= 1.0:
 		print("-l2 must be > 1.0")
 		exit(1)
 

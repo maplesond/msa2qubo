@@ -35,12 +35,12 @@ def main():
 	parser.add_argument("-o", "--output_dir", required=True,
 						help="The output directory")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA (will round up to nearest power of 2)")
-	parser.add_argument("-l0", "--position_weighting", type=float, default=1.0,
-						help="The weighting to apply to positioning of elements (must be larger than --gap_weighting)")
-	parser.add_argument("-l1", "--gap_weighting", type=float, default=0.1,
-						help="The weighting to apply to gap penalties")
-	parser.add_argument("-l2", "--reward_weighting", type=float, default=10.0,
-						help="The weighting to apply to reward matches (must be greater than 1.0)")
+	parser.add_argument("-l0", "--invalid_position_penalty", type=float, default=10.0,
+						help="The penalty to apply for invalid sequence ordering (must be much larger than --gap_weighting)")
+	parser.add_argument("-l1", "--gap_penalty", type=float, default=0.1,
+						help="The penalty to apply to any detected gaps")
+	parser.add_argument("-l2", "--invalid_reward_penalty", type=float, default=100.0,
+						help="The penalty to apply to matches in different columns (must be greater than 1.0)")
 	parser.add_argument("-d", "--delta", type=float, default=2.0,
 						help="The delta factor that controls cubic to quadratic transformation (must be greater than 1.0)")
 	parser.add_argument("--do_iqp", action='store_true', default=False, help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
@@ -62,7 +62,7 @@ def main():
 	print()
 
 	start1 = time.time()
-	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting, reduced=args.reduced)
+	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=args.delta, l0=args.invalid_position_penalty, l1=args.gap_penalty, l2=args.invalid_reward_penalty, reduced=args.reduced)
 	m2q.run()
 	end1 = time.time()
 	print("Time taken to create QUBO file (s): ", "{0:.2f}".format(round(end1 - start1,2)))

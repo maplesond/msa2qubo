@@ -279,7 +279,11 @@ class BVC:
 			for i in range(self.get_yVarOffset(), self.get_yVarOffset() + self.get_NbYVars()):
 				if not self.unused[i]:
 					ysize += 1
-			list += ['R'] * rsize + ['Y'] * ysize + ['Z'] * ysize
+			zsize = 0
+			for i in range(self.get_zVarOffset(), self.get_zVarOffset() + self.get_NbZVars()):
+				if not self.unused[i]:
+					zsize += 1
+			list += ['R'] * rsize + ['Y'] * ysize + ['Z'] * zsize
 
 		return "[{0}]".format(", ".join(str(i) for i in list))
 
@@ -326,6 +330,9 @@ class BVC:
 	def get_zVarOffset(self):
 		"""Gets the offset (in terms of number of binary variables) for the first binary variable representing a reward"""
 		return self.get_yVarOffset() + self.get_NbYVars()
+
+	def getTotalBVs(self):
+		return self.get_zVarOffset() + self.get_NbZVars()
 
 	def get_NbPositioningVars(self, intmode=False):
 		return self.K() * self.m() if not intmode else self.K()
@@ -522,45 +529,60 @@ class BVC:
 					G_kj1 = G_k + ((j + 1) * self.p())
 					self.energy += 1
 
-					# x nodes.  Include quadratic and linear terms
+					# x nodes and xx couplings.  Include quadratic and linear terms
 					for x_a1 in range(self.m()):
-						for x_a2 in range(x_a1, self.m()):
-							x_kja1 = x_kj + x_a1
-							x_kj1a1 = x_kj1 + x_a1
+						x_kja1 = x_kj + x_a1
+						x_kj1a1 = x_kj1 + x_a1
+						x_k1a1 = x_k + x_a1
+
+						linear_scale = 2 ** x_a1
+						quad_scale = 2 ** (2 * x_a1)
+
+						# X Nodes - linear parts
+						e0bm[x_kja1, x_kja1] += 2 * linear_scale
+						e0bm[x_kj1a1, x_kj1a1] -= 2 * linear_scale
+
+						# X Nodes - quadratic parts (on diagonal)
+						e0bm[x_kja1, x_kja1] += quad_scale
+						e0bm[x_kj1a1, x_kj1a1] += quad_scale
+						e0bm[x_k1a1, x_k1a1] += quad_scale
+
+						for x_a2 in range(x_a1+1, self.m()):
 							x_kja2 = x_kj + x_a2
 							x_kj1a2 = x_kj1 + x_a2
-							x_k1a1 = x_k + x_a1
 							x_k1a2 = x_k + x_a2
 
-							quad_scale = (2 ** x_a1) ** 2 if x_a1 == x_a2 else (2 ** (x_a1 + x_a2 + 1))
+							off_quad_scale = 2 ** (x_a1 + x_a2 + 1)
 
-							# Quadratic parts
-							e0bm[x_kja1, x_kja2] += quad_scale
-							e0bm[x_kj1a1, x_kj1a2] += quad_scale
-							e0bm[x_k1a1, x_k1a2] += quad_scale
+							# X Nodes - quadratic parts (off diagonal)
+							e0bm[x_kja1, x_kja2] += off_quad_scale
+							e0bm[x_kj1a1, x_kj1a2] += off_quad_scale
+							e0bm[x_k1a1, x_k1a2] += off_quad_scale
 
-							# Linear parts
-							if x_a1 == x_a2:
-								e0bm[x_kja1, x_kja2] += 2 * (2 ** x_a1)
-								e0bm[x_kj1a1, x_kj1a2] -= 2 * (2 ** x_a1)
-
-					# g node
+					# g nodes
 					for G_a1 in range(self.p()):
-						for G_a2 in range(G_a1, self.p()):
-							g_kj1a1 = G_kj1 + G_a1
+						g_kj1a1 = G_kj1 + G_a1
+						g_k1a1 = G_k + G_a1
+
+						linear_scale = 2 ** G_a1
+						quad_scale = 2 ** (2 * G_a1)
+
+						# Linear parts
+						e0bm[g_kj1a1, g_kj1a1] += 2 * linear_scale
+
+						# Quadratic parts (on diagonal)
+						e0bm[g_kj1a1, g_kj1a1] += quad_scale
+						e0bm[g_k1a1, g_k1a1] += quad_scale
+
+						for G_a2 in range(G_a1+1, self.p()):
 							g_kj1a2 = G_kj1 + G_a2
-							g_k1a1 = G_k + G_a1
 							g_k1a2 = G_k + G_a2
 
-							quad_scale = (2 ** G_a1) ** 2 if G_a1 == G_a2 else (2 ** (G_a1 + G_a2 + 1))
+							off_quad_scale = 2 ** (G_a1 + G_a2 + 1)
 
 							# Quadratic parts
-							e0bm[g_kj1a1, g_kj1a2] += quad_scale
-							e0bm[g_k1a1, g_k1a2] += quad_scale
-
-							# Linear parts
-							if G_a1 == G_a2:
-								e0bm[g_kj1a1, g_kj1a2] += 2 * (2 ** G_a1)
+							e0bm[g_kj1a1, g_kj1a2] += off_quad_scale
+							e0bm[g_k1a1, g_k1a2] += off_quad_scale
 
 					# xx - coupled
 					for x_a1 in range(self.m()):
@@ -569,11 +591,13 @@ class BVC:
 
 					# xG - coupled
 					for x_a in range(self.m()):
-						for G_a in range(x_a, self.p()):
+						for G_a in range(self.p()):
 							quad_scale = 2 ** (G_a + x_a)
 							e0bm[x_kj + x_a, G_kj1 + G_a] += 2 * quad_scale
 							e0bm[x_kj1 + x_a, G_kj1 + G_a] -= 2 * quad_scale
 							e0bm[x_k + x_a, G_k + G_a] -= 2 * quad_scale
+
+
 
 				x_k += L_k * self.m()
 				G_k += L_k * self.p()
@@ -605,48 +629,37 @@ class BVC:
 				for j in range(1, L_k):
 					g_kj = g_k + (j * self.p())
 					for a1 in range(self.p()):
+
+						g_kja1 = g_kj + a1
+						quad_scale = 2 ** (2 * a1)
+						e1bm[g_kja1, g_kja1] += self.__l1 * quad_scale
+
 						for a2 in range(a1, self.p()):
-							g_kja1 = g_kj + a1
 							g_kja2 = g_kj + a2
-							quad_scale = (2 ** a1) ** 2 if a1 == a2 else (2 ** (a1 + a2 + 1))
-							e1bm[g_kja1, g_kja2] += self.__l1 * quad_scale
+							off_quad_scale = 2 ** (a1 + a2 + 1)
+							e1bm[g_kja1, g_kja2] += self.__l1 * off_quad_scale
 				g_k += L_k * self.p()
 			return e1bm
 
 	def __addE2Coefficients(self, intmode=False):
 		"""Updates the binary variable matrix with coefficients from E2"""
-		e2m = np.zeros
 		if intmode:
 			pass
 		else:
-			m = self.m()
-			bRMatPos = self.get_rVarOffset()
-			bYMatPos = self.get_yVarOffset()  # No need to transform R to binary as it only either (0,1)
-			# Since R is either 0,1 in the following loops need to take that into account...
-			bZMatPos = self.get_zVarOffset()
-			matDims = self.get_zVarOffset() + self.get_NbZVars()
-			e2bm = np.zeros((matDims, matDims))
+			e2bm = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
 			pbK = 0
-			pbQ = 0
-			posI = 0
-			posJ = 0
 			piK = 0
-			piQ = 0
-			x_k = 0
-			x_q = 0
+			b_k = 0
 			for k in range(self.__N - 1):
-				pbQ = 0
-				piQ = 0
-
 				size_iq = 0
 				size_bq = 0
-				x_q = x_k + len(self.__x[k]) * m
+				b_q = b_k + len(self.__x[k]) * self.m()
 				for q in range(k + 1, self.__N):
 					size_ii = 0
 					size_bi = 0
 					for i in range(len(self.__x[k])):
 
-						x_ki = x_k + (i * m)
+						b_ki = b_k + (i * self.m())
 
 						size_ij = 0
 						size_bj = 0
@@ -657,76 +670,146 @@ class BVC:
 							w_l2_2d = w_l2_1d * 2
 							w_l2_3d = w_l2_1d * 3
 
-							x_qj = x_q + (j * m)
+							b_qj = b_q + (j * self.m())
 
 							i_idx = piK + size_iq + size_ii + size_ij
 							b_idx = pbK + size_bq + size_bi + size_bj
 
-							r_kqij = bRMatPos + i_idx
+							r_kqij = self.get_rVarOffset() + i_idx
 
 							# - Wijkq*Rijkq
 							e2bm[r_kqij][r_kqij] -= Wijkq			# OK
 
-							for bi in range(0, m):
-								for bj in range(0, m):
+							for a in range(self.m()):
 
-									x_kia = x_ki + bi
-									x_qja = x_qj + bi
+								b_kia = b_ki + a
+								b_qja = b_qj + a
 
-									y_kqija = bYMatPos + b_idx + bi
-									y_kqijb = bYMatPos + b_idx + bj
-									z_kqija = bZMatPos + b_idx + bi
-									z_kqijb = bZMatPos + b_idx + bj
+								y_kqija = self.get_yVarOffset() + b_idx + a
+								z_kqija = self.get_zVarOffset() + b_idx + a
 
-									# Pre-calculations
-									qs = 2 ** (bi + bj)
-
-									# Yijkq*Xki
-									e2bm[x_kia][y_kqijb] += w_l2 * qs
-									# Zijkq*Xqj
-									e2bm[x_qja][z_kqijb] += w_l2 * qs
-
-									# 3d * Yijkq
-									if bi == bj:
-										e2bm[y_kqija][y_kqijb] += w_l2_3d * qs
-									elif bi < bj:
-										e2bm[y_kqija][y_kqijb] += w_l2_3d * qs * 2
-
-									# -3d * Zijkq
-									if bi == bj:
-										e2bm[z_kqija][z_kqijb] -= w_l2_3d * qs
-									elif bi < bj:
-										e2bm[z_kqija][z_kqijb] -= w_l2_3d * qs * 2
+								ls = 2 ** a
+								qs = 2 ** (2 * a)
 
 
-									# d * Rijqk*Xki
-									e2bm[x_kia][r_kqij] += w_l2_1d * qs
-									# -d * Rijkq*Xqj
-									e2bm[x_qja][r_kqij] -= w_l2_1d * qs
+								# On diagonal (Y + Z) parts
+
+								# 3d * Y_ijkqa
+								e2bm[y_kqija][y_kqija] -= w_l2_3d * qs
+
+								# 3d * Z_ijkqa
+								e2bm[z_kqija][z_kqija] -= w_l2_3d * qs
+
+								# 3d * Y_ijkqa
+								e2bm[y_kqija][y_kqija] += w_l2_3d * qs * 2
 
 
-									# -2d * Yijkq*Rijkq
-									e2bm[r_kqij][y_kqijb] -= w_l2_2d * qs
-									# -2d * Yijkq*Xki
-									e2bm[x_kia][y_kqijb] -= w_l2_2d * qs
-									# -2 * Yijkq*Xqj
-									e2bm[x_qja][y_kqijb] -= w_l2_2d * qs
+								# R x X lines
 
-									# 2d * Zijqk*Xqj
-									e2bm[x_qja][z_kqijb] += w_l2_2d * qs
-									# 2d * Zijkq*Rijkq
-									e2bm[r_kqij][z_kqijb] += w_l2_2d * qs
+								# d * R_ijqk * X_kia
+								e2bm[b_kia, r_kqij] += w_l2_1d * ls
+
+								# d * R_ijqk * X_qja
+								e2bm[b_qja, r_kqij] += w_l2_1d * ls
+
+								# d * R_ijqk * X_kia
+								e2bm[b_kia, r_kqij] -= w_l2_1d * ls * 2
+
+
+								# Y or Z x R lines
+
+								# 2d * Y_ijkqa * R_ijkq
+								e2bm[r_kqij, y_kqija] += w_l2_2d * ls
+
+								# 2d * Z_ijkqa * R_ijkq
+								e2bm[r_kqij, z_kqija] += w_l2_2d * ls
+
+								# 2d * Y_ijkqa * R_ijkq
+								e2bm[r_kqij, y_kqija] -= w_l2_2d * ls * 2
+
+
+
+								'''
+								# 2d * X_kia * Y_ijkqa
+								e2bm[b_kia, y_kqija] += w_l2_2d * qs
+
+								# +2d * X_qja * Z_ijkqa
+								e2bm[b_qja, z_kqija] += w_l2_2d * qs
+
+								# +2d * X_kia * Y_ijkqa
+								e2bm[b_kia, y_kqija] -= w_l2_2d * qs * 2
+
+
+
+								# y_ijkqa * X_kib
+								e2bm[b_kia, y_kqija] += w_l2 * qs
+
+								# z_ijkqa * x_kqa
+								e2bm[b_qja, z_kqija] += w_l2 * qs
+
+								# y_ijkqa * x_qjb
+								e2bm[b_qja, y_kqija] -= w_l2 * qs * 2
+								'''
+
+
+								# Off diagonal (Y + Z) parts
+								for b in range(a+1, self.m()):
+
+									y_kqijb = self.get_yVarOffset() + b_idx + b
+									z_kqijb = self.get_zVarOffset() + b_idx + b
+
+									quad_scale = 2 ** (a + b + 1)
+
+									# 3d * Y_ijkqa
+									e2bm[y_kqija, y_kqijb] -= w_l2_3d * quad_scale
+
+									# 3d * Z_ijkqa
+									e2bm[z_kqija, z_kqijb] -= w_l2_3d * quad_scale
+
+									# 3d * Y_ijkqa
+									e2bm[y_kqija, y_kqijb] += w_l2_3d * quad_scale * 2
+
+
+								# X and Y or Z blocks
+								for b in range(self.m()):
+
+									y_kqijb = self.get_yVarOffset() + b_idx + b
+									z_kqijb = self.get_zVarOffset() + b_idx + b
+
+									quad_scale = 2 ** (a + b)
+
+									# 2d * X_kia * Y_ijkqa
+									e2bm[b_kia, y_kqijb] += w_l2_2d * quad_scale
+
+									# +2d * X_qja * Z_ijkqa
+									e2bm[b_qja, z_kqijb] += w_l2_2d * quad_scale
+
+									# +2d * X_kia * Y_ijkqa
+									e2bm[b_kia, y_kqijb] -= w_l2_2d * quad_scale * 2
+
+
+
+									# y_ijkqa * X_kib
+									e2bm[b_kia][y_kqijb] += w_l2 * quad_scale
+
+									# z_ijkqa * x_kqa
+									e2bm[b_qja][z_kqijb] += w_l2 * quad_scale
+
+									# y_ijkqa * x_qjb
+									e2bm[b_qja][y_kqijb] -= w_l2 * quad_scale * 2
+
+
 
 							size_ij += 1
-							size_bj += m
+							size_bj += self.m()
 						size_ii += size_ij
 						size_bi += size_bj
 					size_iq += size_ii
 					size_bq += size_bi
-					x_q += len(self.__x[q]) * m
+					b_q += len(self.__x[q]) * self.m()
 				pbK += size_bq
 				piK += size_iq
-				x_k += len(self.__x[k]) * m
+				b_k += len(self.__x[k]) * self.m()
 			return e2bm
 
 	def __calcNbNodes(self):
