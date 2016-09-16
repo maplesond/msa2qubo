@@ -43,6 +43,8 @@ def main():
 						help="The penalty to apply to matches in different columns (must be greater than 1.0)")
 	parser.add_argument("-d", "--delta", type=float, default=2.0,
 						help="The delta factor that controls cubic to quadratic transformation (must be greater than 1.0)")
+	parser.add_argument("-t", "--target", type=float, default=0.0,
+						help="Allows the user to override the expected target energy of the solution (default of 0.0 means use the system defined version)")
 	parser.add_argument("--do_iqp", action='store_true', default=False, help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
 	parser.add_argument("-r", "--reduced", action='store_true', default=False, help="Run in reduced mode, only E0 and E1 will be active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
@@ -75,7 +77,8 @@ def main():
 
 	# Assume qbsolv in on the PATH
 	start2 = time.time()
-	cmd_args = ['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(m2q.energy + 0.05), "-o", args.output_dir + "/qmsa.solution"]
+	target_energy = args.target if args.target != 0.0 else m2q.energy
+	cmd_args = ['qbsolv', '-i', args.output_dir + "/qmsa.qubo", "-T", str(target_energy + 0.05), "-o", args.output_dir + "/qmsa.solution"]
 	print("Executing:", " ".join(cmd_args))
 	subprocess.call(cmd_args)
 	subprocess.call(['cat', args.output_dir + "/qmsa.solution"])

@@ -669,6 +669,10 @@ class BVC:
 							term2 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
 							term3 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
 
+							pen1 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+							pen2 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+							pen3 = np.zeros((self.getTotalBVs(), self.getTotalBVs()))
+
 							Wijkq = self.w(i=i, j=j, k=k, q=q)
 
 							w_l2 = Wijkq * self.l2()
@@ -695,16 +699,13 @@ class BVC:
 								y_kqija = self.get_yVarOffset() + b_idx + a
 								z_kqija = self.get_zVarOffset() + b_idx + a
 
+								ls = 2 ** a
 
 								# X and Y or Z blocks
 								for b in range(self.m()):
 
 									b_kib = b_ki + b
 									b_qjb = b_qj + b
-
-									y_kqijb = self.get_yVarOffset() + b_idx + b
-									z_kqijb = self.get_zVarOffset() + b_idx + b
-
 
 									quad_scale = 2 ** (a + b)
 
@@ -715,32 +716,32 @@ class BVC:
 
 
 									# delta * x_1 * x_2
-									term1[b_kia, r_kqij] += d1 * quad_scale
-									term2[b_qja, r_kqij] += d1 * quad_scale
-									term3[b_kia, r_kqij] += d1 * quad_scale
+									pen1[b_kia, r_kqij] += d1 * ls
+									pen2[b_qja, r_kqij] += d1 * ls
+									pen3[b_kia, r_kqij] += d1 * ls
 
 
 									# -2 * delta * x_1 * z
-									term1[r_kqij, y_kqija] -= d2 * quad_scale
-									term2[r_kqij, z_kqija] -= d2 * quad_scale
-									term3[r_kqij, y_kqija] -= d2 * quad_scale
+									pen1[r_kqij, y_kqija] -= d2 * ls
+									pen2[r_kqij, z_kqija] -= d2 * ls
+									pen3[r_kqij, y_kqija] -= d2 * ls
 
 
 									# -2 * delta * x_2 * z
-									term1[b_kia, y_kqija] -= d2 * quad_scale
-									term2[b_qja, z_kqija] -= d2 * quad_scale
-									term3[b_kia, y_kqija] -= d2 * quad_scale
+									pen1[b_kia, y_kqija] -= d2 * ls
+									pen2[b_qja, z_kqija] -= d2 * ls
+									pen3[b_kia, y_kqija] -= d2 * ls
 
 
 									# 3 * delta * z
-									term1[y_kqija, y_kqija] += d3 * quad_scale
-									term2[z_kqija, z_kqija] += d3 * quad_scale
-									term3[y_kqija, y_kqija] += d3 * quad_scale
+									pen1[y_kqija, y_kqija] += d3 * ls
+									pen2[z_kqija, z_kqija] += d3 * ls
+									pen3[y_kqija, y_kqija] += d3 * ls
 
 
 							for s in range(self.getTotalBVs()):
 								for t in range(s, self.getTotalBVs()):
-									e2bm[s, t] += -w_l2 * term1[s,t] - w_l2 * term2[s,t] + 2 * w_l2 * term3[s,t]
+									e2bm[s, t] += -w_l2 * term1[s,t] - w_l2 * term2[s,t] + 2 * w_l2 * term3[s,t] - w_l2 * pen1[s,t] - w_l2 * pen2[s,t] - 2 * w_l2 * pen3[s,t]
 
 							size_ij += 1
 							size_bj += self.m()
@@ -803,9 +804,9 @@ class BVC:
 		print("Optimal solution")
 		bvec=np.array([0,0,0, 1,0,0, 0,0,0, 1,0,0,
 					   0,0,0,0,
-					   1,1,
-					   0,0,0, 1,0,0,
-					   0,0,0, 1,0,0])
+					   1,0,
+					   0,0,0, 0,0,0,
+					   0,0,0, 0,0,0])
 					   #1,1,1, 1,1,1,
 					   #0,0,0, 0,0,0])
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
