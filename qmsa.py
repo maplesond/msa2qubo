@@ -37,11 +37,11 @@ def main():
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA (will round up to nearest power of 2)")
 	parser.add_argument("-l0", "--invalid_position_penalty", type=float, default=10.0,
 						help="The penalty to apply for invalid sequence ordering (must be much larger than --gap_weighting)")
-	parser.add_argument("-l1", "--gap_penalty", type=float, default=0.1,
+	parser.add_argument("-l1", "--gap_penalty", type=float, default=0.2,
 						help="The penalty to apply to any detected gaps")
-	parser.add_argument("-l2", "--invalid_reward_penalty", type=float, default=100.0,
+	parser.add_argument("-l2", "--invalid_reward_penalty", type=float, default=10.0,
 						help="The penalty to apply to matches in different columns (must be greater than 1.0)")
-	parser.add_argument("-d", "--delta", type=float, default=2.0,
+	parser.add_argument("-d", "--delta", type=float, default=5.0,
 						help="The delta factor that controls cubic to quadratic transformation (must be greater than 1.0)")
 	parser.add_argument("-t", "--target", type=float, default=0.0,
 						help="Allows the user to override the expected target energy of the solution (default of 0.0 means use the system defined version)")
