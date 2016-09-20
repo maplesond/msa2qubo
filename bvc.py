@@ -634,7 +634,7 @@ class BVC:
 						quad_scale = 2 ** (2 * a1)
 						e1bm[g_kja1, g_kja1] += self.__l1 * quad_scale
 
-						for a2 in range(a1, self.p()):
+						for a2 in range(a1+1, self.p()):
 							g_kja2 = g_kj + a2
 							off_quad_scale = 2 ** (a1 + a2 + 1)
 							e1bm[g_kja1, g_kja2] += self.__l1 * off_quad_scale
