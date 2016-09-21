@@ -789,19 +789,37 @@ class BVC:
 	def createW(self):
 
 		N = self.__N
-		self.__W = np.zeros(shape=(self.__Lmax, self.__Lmax, N, N))
+		self.__W = []
 
 		for k in range(N - 1):
+			karray = []
 			for q in range(k + 1, N):
+				qarray = []
 				for i in range(len(self.__x[k])):
+					iarray = []
 					for j in range(len(self.__x[q])):
-						self.__W[i, j, k, q] = 1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.
+						iarray.append(1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.)
+					qarray.append(iarray)
+				karray.append(qarray)
+			self.__W.append(karray)
 
 	def w(self, i, j, k, q):
-		return self.__W[i, j, k, q]
+		return self.__W[k][q-k-1][i][j]
 
 	def sophiesMethod(self):
 		print("Optimal solution")
+		bvec=np.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+					   0, 0, 0, 0, 0, 0, 0, 1,
+					   1, 0, 0, 1, 0, 1, 0,
+					   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+		bvec=np.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+					   0, 0, 0, 0, 0, 0, 0, 0,
+					   1, 0, 0, 1, 0, 1, 0,
+					   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+		'''
 		bvec=np.array([0,0,0, 1,0,0, 0,0,0, 1,0,0,
 					   0,0,0,0,
 					   1,0,
@@ -809,6 +827,7 @@ class BVC:
 					   0,0,0, 0,0,0])
 					   #1,1,1, 1,1,1,
 					   #0,0,0, 0,0,0])
+		'''
 		print(np.dot(bvec, np.dot(self.__bvm, bvec.transpose())))
 
 	def createBVMatrix(self, intmode=False, verbose=False):
