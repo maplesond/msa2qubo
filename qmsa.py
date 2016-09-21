@@ -47,6 +47,8 @@ def main():
 						help="Allows the user to override the expected target energy of the solution (default of 0.0 means use the system defined version)")
 	parser.add_argument("-n", "--repeats", type=int, default=20,
 						help="This optional argument controls the argument of the same name in qbsolv.  It denotes, once a new optimal value is found, to repeat the main loop of the algorithm this number of times with no change in optimal value before stopping. The default value is 20.")
+	parser.add_argument("-s", "--scoring", default=None,
+						help="The scoring system to use.  Leave unset to use score of 1 for a match and 0 for mismatch.  Available options: [BLOSUM62]")
 	parser.add_argument("--do_iqp", action='store_true', default=False, help="If set, run a mixed integer quadratic solver (gurobi) on the integer representation of the problem.")
 	parser.add_argument("-r", "--reduced", action='store_true', default=False, help="Run in reduced mode, only E0 and E1 will be active")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
@@ -66,7 +68,7 @@ def main():
 	print()
 
 	start1 = time.time()
-	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=args.delta, l0=args.invalid_position_penalty, l1=args.gap_penalty, l2=args.invalid_reward_penalty, reduced=args.reduced)
+	m2q = Msa2Qubo(input=args.input, output=args.output_dir + "/qmsa.qubo", P=args.P, verbose=args.verbose, delta=args.delta, l0=args.invalid_position_penalty, l1=args.gap_penalty, l2=args.invalid_reward_penalty, reduced=args.reduced, scoring=args.scoring)
 	m2q.run()
 	end1 = time.time()
 	print("Time taken to create QUBO file (s): ", "{0:.2f}".format(round(end1 - start1,2)))

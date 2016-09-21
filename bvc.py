@@ -29,7 +29,7 @@ class BVC:
 	then add BioPython sequence records that will represent the MSA.  Finally call createBVMatrix to create the symettric
 	matrix containing binary variable coefficients."""
 
-	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0, reduced=False, settings_file=None):
+	def __init__(self, P=1, d=2.0, l0=0.8, l1=1.0, l2=10.0, reduced=False, weights=None, settings_file=None):
 		self.data = []
 
 		if settings_file == None:
@@ -89,6 +89,7 @@ class BVC:
 
 		self.__bvs = []
 
+		self.__weights = weights
 		self.energy = 0
 		self.ienergy = 0
 		self.active = []
@@ -798,7 +799,10 @@ class BVC:
 				for i in range(len(self.__x[k])):
 					iarray = []
 					for j in range(len(self.__x[q])):
-						iarray.append(1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.)
+						if self.__weights == None:
+							iarray.append(1. if self.__seqs[k][i] == self.__seqs[q][j] else 0.)
+						else:
+							iarray.append(float(self.__weights[self.__seqs[k][i]][self.__seqs[q][j]]))
 					qarray.append(iarray)
 				karray.append(qarray)
 			self.__W.append(karray)

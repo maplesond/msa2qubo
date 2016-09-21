@@ -6,6 +6,7 @@ import argparse
 import sys
 from Bio import SeqIO
 from bvc import BVC
+import weightings
 
 __author__ = "Dan Mapleson, Luis Yanes, Katie Barr, Sophie Kirkwood and Tim Stitt"
 __copyright__ = "Copyright 2016, Quantum MSA"
@@ -20,7 +21,7 @@ __status__ = "Prototype"
 
 class Msa2Qubo:
 
-	def __init__(self, input, output, P, delta, l0, l1, l2, reduced=False, verbose=False):
+	def __init__(self, input, output, P, delta, l0, l1, l2, reduced=False, verbose=False, scoring = None):
 		self.data = []
 		self.input = input
 		self.output = output
@@ -31,6 +32,7 @@ class Msa2Qubo:
 		self.l2 = l2
 		self.reduced = reduced
 		self.verbose = verbose
+		self.scoring = scoring
 
 		self.energy = 0.0
 		self.active = []
@@ -59,6 +61,13 @@ class Msa2Qubo:
 			print("-P must be >= 1")
 			exit(1)
 
+		weights = None
+		if self.scoring:
+			print("Loading " + self.scoring + " scoring matrix...", end="")
+			weights = weightings.loadScoring(self.scoring)
+			print(" done")
+
+
 		print("Loading input into memory...", end="")
 		handle = open(self.input, "rU")
 		records = list(SeqIO.parse(handle, "fasta"))
@@ -68,7 +77,7 @@ class Msa2Qubo:
 		print("Input:")
 
 		# Collect variables
-		self.bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2, reduced=self.reduced)
+		self.bvc = BVC(P=self.P, d=self.delta, l0=self.l0, l1=self.l1, l2=self.l2, reduced=self.reduced, weights=weights)
 		for r in records:
 			self.bvc.add_record(r)
 
@@ -134,8 +143,6 @@ def main():
 						help="The output file, containing the QUBO representation of the MSA problem")
 	parser.add_argument("-P", type=int, default=1, help="The maximum gap size allowed in the MSA (will round up to nearest power of 2)")
 	parser.add_argument("-d", "--delta", type=float, default=2.0, help="Delta.  The scaling factor to apply when converting products of 3BVs to 2BVs.")
-	parser.add_argument("-s", "--simulate", action='store_true', default=False,
-						help="Whether to try and simulate D-Wave and come up with a solution to the problem.  Only runs if number of binary variables is < 30.")
 	parser.add_argument("-l0", "--invalid_position_penalty", type=float, default=10.0,
 						help="The penalty to apply for invalid sequence ordering (must be much larger than --gap_weighting)")
 	parser.add_argument("-l1", "--gap_penalty", type=float, default=0.1,
@@ -144,6 +151,8 @@ def main():
 						help="The penalty to apply to matches in different columns (must be greater than 1.0)")
 	parser.add_argument("-r", "--reduced", action='store_true', default=False,
 						help="Run in reduced mode, only E0 and E1 active")
+	parser.add_argument("-s", "--scoring", default=None,
+						help="The scoring system to use.  Leave unset to use score of 1 for a match and 0 for mismatch.  Available options: [BLOSUM62]")
 	parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Display extra information")
 	args = parser.parse_args()
 
@@ -168,7 +177,7 @@ def main():
 		exit(1)
 
 	m2q = Msa2Qubo(input=args.input, output=args.output, P=args.P, delta=args.delta, l0=args.position_weighting, l1=args.gap_weighting, l2=args.reward_weighting,
-			reduced=args.reduced, verbose=args.verbose)
+			reduced=args.reduced, scoring=args.scoring, verbose=args.verbose)
 	m2q.run()
 
 
