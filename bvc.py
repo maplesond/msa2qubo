@@ -689,9 +689,6 @@ class BVC:
 
 							r_kqij = self.get_rVarOffset() + i_idx
 
-							# Wijkq*Rijkq
-							e2bm[r_kqij][r_kqij] += Wijkq			# OK
-
 							for a in range(self.m()):
 
 								b_kia = b_ki + a
@@ -709,6 +706,9 @@ class BVC:
 									b_qjb = b_qj + b
 
 									quad_scale = 2 ** (a + b)
+
+									# Wijkq*Rijkq
+									e2bm[r_kqij][r_kqij] += Wijkq			# OK
 
 									# z * x_3
 									term1[b_kib, y_kqija] += quad_scale
